@@ -1,31 +1,37 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
-from decouple import config
 import dj_database_url
+from dotenv import load_dotenv
 
+# Tải biến môi trường từ file .env (cho local)
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production-12345')
+# ==========================================
+# 1. BẢO MẬT & CẤU HÌNH CƠ BẢN
+# ==========================================
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Lấy SECRET_KEY từ biến môi trường, nếu không có thì dùng key tạm (chỉ cho local)
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-key-mac-dinh-thay-doi-ngay')
 
-# ALLOWED_HOSTS configuration - strip whitespace from split values
-# In production, set ALLOWED_HOSTS with your domain
-_allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,*.railway.app,fitblog-production.up.railway.app')
-ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_str.split(',')]
+# Tắt DEBUG trên Railway (Mặc định là True nếu không set biến môi trường)
+# Trên Railway bạn nhớ set biến DEBUG = False
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-# Allow all hosts in development mode
-if DEBUG:
-    ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*']  # Cho phép tất cả host để tránh lỗi 400 Bad Request trên Railway
 
+# QUAN TRỌNG CHO RAILWAY: Tránh lỗi 403 Forbidden khi submit form
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.railway.app',
+    'https://fitblog-production.up.railway.app',
+]
 
-# Application definition
+# ==========================================
+# 2. ỨNG DỤNG & MIDDLEWARE
+# ==========================================
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -33,16 +39,18 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Third party
     'rest_framework',
     'corsheaders',
+    # Apps
     'blog',
     'chatbot',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # <-- Whitenoise phải ở ngay sau Security
+    'corsheaders.middleware.CorsMiddleware',       # <-- Cors phải ở trên Common
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -72,32 +80,58 @@ TEMPLATES = [
 WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 
 
-# Database
-# On Railway, prefer PostgreSQL via DATABASE_URL
-# Fallback to SQLite in /tmp for local/development
-import tempfile
+# ==========================================
+# 3. DATABASE (FIX LỖI QUAN TRỌNG)
+# ==========================================
 
-# Check if DATABASE_URL is set (Railway/production)
-database_url = os.getenv('DATABASE_URL')
+# Cấu hình mặc định là SQLite (cho local)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+# Cấu hình cho Railway (PostgreSQL)
+database_url = os.environ.get("DATABASE_URL")
 
 if database_url:
-    # Use external database (PostgreSQL on Railway)
-    DATABASES = {
-        'default': dj_database_url.config(
+    try:
+        # Parse URL thành config dictionary
+        db_from_env = dj_database_url.config(
             default=database_url,
             conn_max_age=600,
-            conn_health_checks=True,
+            ssl_require=True
         )
-    }
-else:
-    # Fallback to SQLite for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(tempfile.gettempdir(), 'db.sqlite3'),
-        }
-    }
+        
+        # FIX LỖI: Tự động thêm tên DB 'railway' nếu bị thiếu
+        if db_from_env and not db_from_env.get('NAME'):
+            db_from_env['NAME'] = 'railway'
+            
+        DATABASES['default'] = db_from_env
+        print("✅ Database configured successfully for Railway.")
+    except Exception as e:
+        print(f"❌ Error configuring database: {e}")
 
+
+# ==========================================
+# 4. STATIC FILES (CSS/JS/IMAGES)
+# ==========================================
+
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
+
+# Cấu hình Whitenoise để phục vụ file tĩnh
+if not DEBUG:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# ==========================================
+# 5. CÁC CẤU HÌNH KHÁC
+# ==========================================
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -107,45 +141,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # Internationalization
 LANGUAGE_CODE = 'vi-VN'
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
 USE_I18N = True
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Create staticfiles directory if it doesn't exist
-os.makedirs(STATIC_ROOT, exist_ok=True)
-
-# Don't ignore SVG and other files during collectstatic
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-]
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ===== CORS Configuration =====
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
-
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS = True # Đơn giản hóa cho môi trường dev/test
 CORS_ALLOW_CREDENTIALS = True
 
-# ===== REST Framework =====
+# REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
@@ -154,80 +162,20 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
 }
 
-# ===== Chatbot Settings =====
-NGROK_LLM_API = os.getenv(
-    'NGROK_LLM_API',
-    'https://yyyyy.ngrok-free.app/ask'  # Sẽ cập nhật sau
-)
+# Chatbot API
+NGROK_LLM_API = os.environ.get('NGROK_LLM_API', 'http://localhost:8001')
 
-# ===== Logging =====
+# Logging cơ bản (Tránh lỗi DatabaseLogHandler khi chưa có bảng)
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '[{levelname}] {name} - {message}',
-            'style': '{',
-        },
-        'simple': {
-            'format': '{message}',
-            'style': '{',
-        },
-    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
-        },
-        'database': {
-            'class': 'blog.logging_handlers.DatabaseLogHandler',
-            'formatter': 'verbose',
-            'level': 'INFO',  # Only log INFO and above to DB to avoid noise
         },
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],  # Disable database handler for now
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'blog': {
-            'handlers': ['console'],  # Disable database handler for now
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'chatbot': {
-            'handlers': ['console'],  # Disable database handler for now
-            'level': 'INFO',
-            'propagate': False,
-        },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
     },
 }
-
-# CORS Settings
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS', 
-    default='http://localhost:3000,http://localhost:8000'
-).split(',')
-
-# Security Settings for Production
-if not DEBUG:
-    # Disable SSL redirect on Railway (Railway handles SSL termination)
-    SECURE_SSL_REDIRECT = False
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_SECURITY_POLICY = {
-        'default-src': ("'self'",),
-    }
-
-# WhiteNoise Settings
-if DEBUG:
-    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-else:
-    # Use WhiteNoise without manifest for production
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-
-# Chatbot API
-NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
