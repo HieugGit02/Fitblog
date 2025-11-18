@@ -3,7 +3,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from decouple import config
 import dj_database_url
-
+# import cloudinary
+# import cloudinary.uploader
+# from cloudinary.utils import cloudinary_url
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -244,3 +246,20 @@ else:
 
 # Chatbot API
 NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
+
+# Thêm vào INSTALLED_APPS
+INSTALLED_APPS = [
+    # ...
+    'cloudinary_storage',
+    'cloudinary',
+    # ...
+]
+
+# Cấu hình key (Lấy từ Dashboard Cloudinary)
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'dt7txilej',
+    'API_KEY': '233841116172244',
+    'API_SECRET': 'qE3BX_pvuI-xZvlAZAT46-zMP1o'
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
