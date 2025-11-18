@@ -73,9 +73,13 @@ WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 
 
 # Database
+# On Railway, prefer PostgreSQL via DATABASE_URL
+# Fallback to SQLite in /tmp for local/development
+import tempfile
+
 DATABASES = {
     'default': dj_database_url.config(
-        default=f'sqlite:///{os.path.join(BASE_DIR, "db.sqlite3")}',
+        default=f'sqlite:///{os.path.join(tempfile.gettempdir(), "db.sqlite3")}',
         conn_max_age=600
     )
 }
