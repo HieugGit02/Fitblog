@@ -11,7 +11,7 @@
 
 ### Step 1️⃣: Đảm bảo code sạch trên GitHub
 ```bash
-cd /home/hieuhome/CaoHoc/doanratruong/fitblog/Fitblog
+cd ~g/Fitblog
 
 # Kiểm tra migrations
 python manage.py showmigrations
