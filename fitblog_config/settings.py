@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'blog',
     'chatbot',
+    'cloudinary_storage',
+    'cloudinary',
 ]
 
 MIDDLEWARE = [
@@ -247,13 +249,7 @@ else:
 # Chatbot API
 NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
 
-# Thêm vào INSTALLED_APPS
-INSTALLED_APPS = [
-    # ...
-    'cloudinary_storage',
-    'cloudinary',
-    # ...
-]
+
 
 # Cấu hình key (Lấy từ Dashboard Cloudinary)
 CLOUDINARY_STORAGE = {
