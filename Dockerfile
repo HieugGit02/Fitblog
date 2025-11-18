@@ -1,23 +1,31 @@
+# 1. Dùng Python chính chủ từ Docker Hub (Ổn định)
 FROM python:3.11-slim
 
-# Cài thư viện hệ thống
-RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+# 2. Cài đặt các thư viện hệ thống cần thiết cho Postgres và biên dịch
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Thiết lập thư mục
+# 3. Thiết lập thư mục làm việc
 WORKDIR /app
 
-# Cài requirements
+# 4. Copy file requirements và cài đặt thư viện
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy code
+# 5. Copy toàn bộ code vào
 COPY . .
 
-# Tạo thư mục static và chạy collectstatic (dùng key giả để build)
+# 6. Thu thập static files (cho Whitenoise)
+# Tạo thư mục staticfiles để tránh lỗi permission
 RUN mkdir -p staticfiles
-RUN SECRET_KEY=dummy-build-key python manage.py collectstatic --noinput
+# Chạy lệnh collectstatic (cần set dummy secret key để lệnh này chạy đc khi build)
+RUN SECRET_KEY=dummy python manage.py collectstatic --noinput
 
-# Mở cổng và chạy server
+# 7. Mở cổng 8000 (hoặc cổng mà Railway cấp, thường là biến $PORT)
 ENV PORT=8000
 EXPOSE 8000
+
+# 8. Lệnh chạy server (Sửa 'fitblog_config' thành tên project của bạn trong wsgi.py)
 CMD gunicorn fitblog_config.wsgi:application --bind 0.0.0.0:$PORT
