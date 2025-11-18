@@ -124,7 +124,9 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
 # Cấu hình Whitenoise để phục vụ file tĩnh
 if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    # Cách mới (An toàn hơn, web vẫn chạy dù thiếu ảnh):
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
