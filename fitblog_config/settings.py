@@ -76,8 +76,7 @@ WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{os.path.join(BASE_DIR, "db.sqlite3")}',
-        conn_max_age=600,
-        atomic_requests=True
+        conn_max_age=600
     )
 }
 
