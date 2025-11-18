@@ -1,2 +1,2 @@
-web: gunicorn fitblog_config.wsgi
-release: python manage.py migrate --noinput; python manage.py collectstatic --clear --noinput
+web: gunicorn fitblog_config.wsgi --bind 0.0.0.0:$PORT
+release: python manage.py migrate --noinput && python manage.py collectstatic --clear --noinput && echo "Migrations and static files complete"
