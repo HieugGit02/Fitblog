@@ -77,26 +77,39 @@ WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 # Fallback to SQLite in /tmp for local/development
 import tempfile
 
-# Check if DATABASE_URL is set (Railway/production)
+# # Check if DATABASE_URL is set (Railway/production)
+# database_url = os.getenv('DATABASE_URL')
+
+# 1. Cấu hình mặc định (Local): Lưu vào BASE_DIR để giữ dữ liệu
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3', # <-- Sửa dòng này (quan trọng)
+    }
+}
+
+# 2. Cấu hình Railway (Production)
 database_url = os.getenv('DATABASE_URL')
 
 if database_url:
-    # Use external database (PostgreSQL on Railway)
-    DATABASES = {
-        'default': dj_database_url.config(
+    try:
+        # Parse URL thành config dictionary
+        db_config = dj_database_url.config(
             default=database_url,
             conn_max_age=600,
             conn_health_checks=True,
+            ssl_require=True,
         )
-    }
-else:
-    # Fallback to SQLite for local development
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': os.path.join(tempfile.gettempdir(), 'db.sqlite3'),
-        }
-    }
+        
+        # FIX LỖI: Nếu config trả về thiếu tên DB, tự gán mặc định
+        if db_config and not db_config.get('NAME'):
+            db_config['NAME'] = 'railway'
+            
+        DATABASES['default'] = db_config
+        
+    except Exception as e:
+        # Fallback an toàn: In lỗi ra console thay vì sập web ngay lập tức
+        print(f"❌ Error configuring database from URL: {e}")
 
 
 # Password validation
