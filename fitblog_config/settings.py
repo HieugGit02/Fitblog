@@ -105,6 +105,12 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Create staticfiles directory if it doesn't exist
 os.makedirs(STATIC_ROOT, exist_ok=True)
 
+# Don't ignore SVG and other files during collectstatic
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -199,7 +205,11 @@ if not DEBUG:
     }
 
 # WhiteNoise Settings
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+if DEBUG:
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+else:
+    # Use WhiteNoise without manifest for production
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Chatbot API
 NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
