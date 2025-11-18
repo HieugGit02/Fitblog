@@ -40,7 +40,7 @@ Full-stack Django blog về dinh dưỡng và thể hình với Messenger chatbo
 ### 1️⃣ Clone & Setup
 
 ```bash
-cd /home/hieuhome/CaoHoc/doanratruong/fitblog
+cd ~/fitblog
 
 # Create virtual environment
 python3 -m venv venv
