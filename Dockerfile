@@ -24,8 +24,8 @@ RUN mkdir -p staticfiles
 RUN SECRET_KEY=dummy python manage.py collectstatic --noinput
 
 # 7. Mở cổng 8000 (hoặc cổng mà Railway cấp, thường là biến $PORT)
-ENV PORT=8000
-EXPOSE 8000
+ENV PORT=8080
+EXPOSE 8080
 
 # 8. Lệnh chạy server (Sửa 'fitblog_config' thành tên project của bạn trong wsgi.py)
 CMD python manage.py migrate && gunicorn fitblog_config.wsgi:application --bind 0.0.0.0:$PORT
