@@ -16,8 +16,13 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-chang
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 # ALLOWED_HOSTS configuration - strip whitespace from split values
-_allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0')
+# In production, set ALLOWED_HOSTS with your domain
+_allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,*.railway.app')
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_str.split(',')]
+
+# Allow all hosts in development mode
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
 
 
 # Application definition

@@ -20,6 +20,13 @@ class DatabaseLogHandler(logging.Handler):
             # Avoid circular imports by importing here
             from blog.models import SystemLog
             
+            # Check if database connection is available
+            try:
+                connection.ensure_connection()
+            except Exception:
+                # Database not available, skip logging to DB
+                return
+            
             # Format the log message
             message = self.format(record)
             
