@@ -17,7 +17,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 # ALLOWED_HOSTS configuration - strip whitespace from split values
 # In production, set ALLOWED_HOSTS with your domain
-_allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,*.railway.app')
+_allowed_hosts_str = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,0.0.0.0,*.railway.app,fitblog-production.up.railway.app')
 ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts_str.split(',')]
 
 # Allow all hosts in development mode
@@ -76,7 +76,8 @@ WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=f'sqlite:///{os.path.join(BASE_DIR, "db.sqlite3")}',
-        conn_max_age=600
+        conn_max_age=600,
+        atomic_requests=True
     )
 }
 
@@ -163,17 +164,17 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'database'],
+            'handlers': ['console'],  # Disable database handler for now
             'level': 'INFO',
             'propagate': False,
         },
         'blog': {
-            'handlers': ['console', 'database'],
+            'handlers': ['console'],  # Disable database handler for now
             'level': 'INFO',
             'propagate': False,
         },
         'chatbot': {
-            'handlers': ['console', 'database'],
+            'handlers': ['console'],  # Disable database handler for now
             'level': 'INFO',
             'propagate': False,
         },
