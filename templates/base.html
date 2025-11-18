@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Fitblog - Kiến thức về dinh dưỡng, thể hình và sức khỏe">
+    <meta name="theme-color" content="#A5D6A7">
+    <title>{% block title %}Fitblog - Dinh dưỡng Và Thể hình{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'img/logo.svg' %}">
+    <!-- Google Fonts: Inter for UI clarity -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=5">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <div class="brand">
+                <img src="{% static 'img/logo.svg' %}" alt="Fitblog logo" class="site-logo" width="52" height="52">
+                <h1 class="site-title">FITBLOG</h1>
+            </div>
+            <p class="site-tagline">Kiến thức về dinh dưỡng, thể hình và lối sống lành mạnh</p>
+            <!-- Mobile nav toggle moved into header for balanced layout -->
+            <button id="nav-toggle" class="nav-toggle" aria-label="Mở menu" aria-expanded="false">
+                <span class="hamburger">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="container main-nav" id="main-nav">
+        <a href="{% url 'blog:home' %}">Trang chủ</a>
+        <a href="{% url 'blog:post_list' %}">Blog</a>
+        <a href="{% url 'blog:categories' %}">Danh Mục</a>
+        {% if user.is_staff %}
+            <a href="{% url 'admin:index' %}">Admin</a>
+        {% endif %}
+    </nav>
+
+    <!-- overlay for off-canvas nav -->
+    <div id="nav-overlay" class="nav-overlay" aria-hidden="true"></div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 Fitblog | Powered by Hinne AI 🤖 | <a href="#">Privacy</a> | <a href="#">Terms</a></p>
+    </footer>
+
+    <!-- Messenger Widget -->
+    <script src="{% static 'js/header.js' %}?v=1"></script>
+    <script src="{% static 'js/messenger.js' %}?v=9"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

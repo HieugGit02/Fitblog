@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ post.title }} - Fitblog{% endblock %}
+
+{% block extra_css %}
+<style>
+    .post-header {
+        background: linear-gradient(135deg, #A5D6A7 0%, #FFAB91 100%);
+        color: white;
+        padding: 60px 40px;
+        border-radius: 12px;
+        margin-bottom: 40px;
+        animation: fadeInDown 0.6s ease-out;
+    }
+
+    .post-header h1 {
+        color: white;
+        font-size: 2.5rem;
+        margin-bottom: 20px;
+    }
+
+    .post-meta {
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+        font-size: 0.95rem;
+        color: rgba(255, 255, 255, 0.95);
+    }
+
+    .post-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .post-featured-image {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-bottom: 40px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .post-content {
+        font-size: 1.05rem;
+        line-height: 1.8;
+        color: #333;
+    }
+
+    .post-content h2 {
+        color: #A5D6A7;
+        font-size: 1.8rem;
+        margin-top: 40px;
+        margin-bottom: 20px;
+    }
+
+    .post-content h3 {
+        color: #FFAB91;
+        font-size: 1.4rem;
+        margin-top: 30px;
+        margin-bottom: 15px;
+    }
+
+    .post-content p {
+        margin-bottom: 20px;
+        text-align: justify;
+    }
+
+    .post-content ul, .post-content ol {
+        margin-left: 30px;
+        margin-bottom: 20px;
+    }
+
+    .post-content li {
+        margin-bottom: 10px;
+    }
+
+    .post-content blockquote {
+        border-left: 4px solid #A5D6A7;
+        padding: 20px 30px;
+        background: linear-gradient(135deg, rgba(179, 157, 219, 0.1) 0%, rgba(206, 147, 216, 0.05) 100%);
+        margin: 30px 0;
+        font-style: italic;
+        color: #666;
+        border-radius: 8px;
+    }
+
+    .post-content code {
+        background: #f5f5f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        color: #d32f2f;
+    }
+
+    .post-content pre {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 20px 0;
+    }
+
+    /* Tags -->
+    .post-tags {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 30px 0;
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(200, 230, 245, 0.1) 0%, rgba(127, 192, 217, 0.05) 100%);
+        border-radius: 12px;
+    }
+
+    .tag {
+        display: inline-block;
+        padding: 8px 16px;
+        background: white;
+        color: #7fc0d9;
+        border-radius: 20px;
+        border: 2px solid #c8e6f5;
+        text-decoration: none;
+        transition: all 0.3s;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+
+    .tag:hover {
+        background: linear-gradient(135deg, #c8e6f5 0%, #7fc0d9 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    /* Related Posts -->
+    .related-section {
+        background: linear-gradient(135deg, rgba(179, 157, 219, 0.05) 0%, rgba(200, 230, 245, 0.05) 100%);
+        padding: 40px;
+        border-radius: 12px;
+        margin: 60px 0 40px 0;
+    }
+
+    .related-section h3 {
+        color: #A5D6A7;
+        margin-bottom: 30px;
+        font-size: 1.5rem;
+    }
+
+    .related-posts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .related-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+        border: 1px solid rgba(206, 147, 216, 0.1);
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .related-card:hover {
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        transform: translateY(-4px);
+    }
+
+    .related-card h4 {
+        color: #A5D6A7;
+        margin-bottom: 10px;
+        font-size: 1rem;
+    }
+
+    .related-card p {
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0;
+    }
+
+    /* Comments -->
+    .comments-section {
+        margin: 60px 0;
+        padding: 40px;
+        background: linear-gradient(135deg, rgba(200, 230, 245, 0.05) 0%, rgba(127, 192, 217, 0.05) 100%);
+        border-radius: 12px;
+    }
+
+    .comments-section h3 {
+        color: #A5D6A7;
+        margin-bottom: 30px;
+        font-size: 1.5rem;
+    }
+
+    .comment {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        border-left: 4px solid #7fc0d9;
+    }
+
+    .comment-author {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .comment-date {
+        font-size: 0.85rem;
+        color: #999;
+        margin-bottom: 10px;
+    }
+
+    .comment-content {
+        color: #555;
+        line-height: 1.6;
+    }
+
+    /* Comment Form -->
+    .comment-form {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        margin-top: 30px;
+    }
+
+    .comment-form h4 {
+        color: #A5D6A7;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 1rem;
+        transition: all 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #A5D6A7;
+        box-shadow: 0 0 0 3px rgba(179, 157, 219, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    /* Sidebar -->
+    .post-sidebar {
+        background: linear-gradient(135deg, rgba(179, 157, 219, 0.05) 0%, rgba(206, 147, 216, 0.05) 100%);
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid rgba(206, 147, 216, 0.2);
+        position: sticky;
+        top: 80px;
+    }
+
+    .sidebar-item {
+        margin-bottom: 20px;
+    }
+
+    .sidebar-item h4 {
+        color: #A5D6A7;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .post-header {
+            padding: 40px 20px;
+        }
+
+        .post-header h1 {
+            font-size: 1.75rem;
+        }
+
+        .post-featured-image {
+            height: 250px;
+        }
+
+        .post-meta {
+            gap: 15px;
+        }
+
+        .related-posts {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Post Header -->
+<div class="post-header">
+    <span class="badge badge-secondary">{{ post.category.icon }} {{ post.category.name }}</span>
+    <h1>{{ post.title }}</h1>
+    <div class="post-meta">
+        <div class="post-meta-item">✍️ {{ post.author }}</div>
+        <div class="post-meta-item">📅 {{ post.published_at|date:"d M Y" }}</div>
+        <div class="post-meta-item">👁️ {{ post.views }} lượt xem</div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 250px; gap: 40px; align-items: start;">
+    <div>
+        <!-- Featured Image -->
+        {% if post.featured_image %}
+        <img src="{{ post.featured_image.url }}" alt="{{ post.title }}" class="post-featured-image">
+        {% endif %}
+
+        <!-- Content -->
+        <div class="post-content">
+            {{ post.content|linebreaks }}
+        </div>
+
+        <!-- Tags -->
+        {% if post.tags %}
+        <div class="post-tags">
+            {% for tag in post.get_tags_list %}
+            <a href="{% url 'blog:post_list' %}?q={{ tag }}" class="tag">#{{ tag }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Related Posts -->
+        {% if related_posts %}
+        <div class="related-section">
+            <h3>📖 Bài Viết Liên Quan</h3>
+            <div class="related-posts">
+                {% for related in related_posts %}
+                <a href="{{ related.get_absolute_url }}" class="related-card">
+                    <h4>{{ related.title }}</h4>
+                    <p>{{ related.excerpt|truncatewords:10 }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Comments Section -->
+        <div class="comments-section">
+            <h3>💬 Bình Luận ({{ comments|length }})</h3>
+
+            {% if comments %}
+            <div style="margin-bottom: 30px;">
+                {% for comment in comments %}
+                <div class="comment">
+                    <div class="comment-author">{{ comment.author }}</div>
+                    <div class="comment-date">📅 {{ comment.created_at|date:"d/m/Y H:i" }}</div>
+                    <div class="comment-content">{{ comment.content }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color: #999; margin-bottom: 20px;">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+            {% endif %}
+
+            <!-- Comment Form -->
+            <form method="post" class="comment-form">
+                {% csrf_token %}
+                <h4>Để Lại Bình Luận</h4>
+
+                <div class="form-group">
+                    <label for="author">Tên của bạn *</label>
+                    <input type="text" id="author" name="author" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email *</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="content">Bình luận *</label>
+                    <textarea id="content" name="content" required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">📤 Gửi Bình Luận</button>
+                <p style="font-size: 0.85rem; color: #999; margin-top: 15px;">
+                    ℹ️ Bình luận của bạn sẽ được kiểm duyệt trước khi hiển thị
+                </p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="post-sidebar">
+        <div class="sidebar-item">
+            <h4>📂 DANH MỤC</h4>
+            <a href="{{ post.category.get_absolute_url }}" style="color: #7fc0d9; text-decoration: none;">
+                {{ post.category.icon }} {{ post.category.name }}
+            </a>
+        </div>
+
+        <div class="sidebar-item">
+            <h4>🏷️ DANH MỤC KHÁC</h4>
+            {% for category in categories %}
+            {% if category.id != post.category.id %}
+            <div style="margin-bottom: 8px;">
+                <a href="{{ category.get_absolute_url }}" style="color: #7fc0d9; text-decoration: none;">
+                    {{ category.icon }} {{ category.name }} ({{ category.post_count }})
+                </a>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="sidebar-item">
+            <h4>📊 THỐNG KÊ</h4>
+            <div style="font-size: 0.9rem; color: #666;">
+                <div>👁️ Lượt xem: <strong>{{ post.views }}</strong></div>
+                <div>💬 Bình luận: <strong>{{ comments|length }}</strong></div>
+                <div>📅 Cập nhật: <strong>{{ post.updated_at|date:"d/m/Y" }}</strong></div>
+            </div>
+        </div>
+
+        <div class="sidebar-item">
+            <h4>🔗 CHIA SẺ</h4>
+            <div style="display: flex; gap: 8px; font-size: 1.2rem;">
+                <a href="https://www.facebook.com/sharer/sharer.php?u=http://localhost:8000{{ post.get_absolute_url }}" 
+                   target="_blank" title="Facebook">👍</a>
+                <a href="https://twitter.com/intent/tweet?url=http://localhost:8000{{ post.get_absolute_url }}&text={{ post.title }}" 
+                   target="_blank" title="Twitter">🐦</a>
+                <a href="mailto:?subject={{ post.title }}&body={{ post.get_absolute_url }}" 
+                   title="Email">✉️</a>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- Navigation -->
+<div style="display: flex; justify-content: space-between; margin-top: 60px; gap: 20px;">
+    <a href="{% url 'blog:post_list' %}" class="btn btn-outline">← Quay Lại Blog</a>
+    <a href="{% url 'blog:home' %}" class="btn btn-primary">🏠 Trang Chủ</a>
+</div>
+
+{% endblock %}

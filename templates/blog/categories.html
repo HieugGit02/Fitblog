@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Danh Mục - Fitblog{% endblock %}
+
+{% block content %}
+<style>
+    .categories-hero {
+        background: linear-gradient(135deg, #C8E6C9 0%, #FFCCBC 100%);
+        padding: 60px 40px;
+        border-radius: 16px;
+        text-align: center;
+        margin-bottom: 60px;
+        animation: fadeInDown 0.6s ease-out;
+    }
+
+    .categories-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #212121;
+    }
+
+    .categories-hero p {
+        font-size: 1.1rem;
+        color: #424242;
+    }
+
+    .categories-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 60px;
+    }
+
+    .category-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        border: 1px solid #E8F5E9;
+        display: flex;
+        flex-direction: column;
+        animation: fadeIn 0.5s ease-out;
+    }
+
+    .category-card:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+        transform: translateY(-8px);
+        border-color: #A5D6A7;
+    }
+
+    .category-header {
+        background: linear-gradient(135deg, #A5D6A7 0%, #FFAB91 100%);
+        padding: 2rem;
+        color: white;
+        text-align: center;
+    }
+
+    .category-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .category-count {
+        font-size: 0.95rem;
+        opacity: 0.9;
+    }
+
+    .category-posts {
+        padding: 1.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .category-posts-title {
+        font-weight: 600;
+        color: #424242;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .post-item-mini {
+        padding: 0.75rem;
+        background: #F5F5F5;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .post-item-mini:hover {
+        background: #E8F5E9;
+        transform: translateX(4px);
+    }
+
+    .post-item-mini a {
+        text-decoration: none;
+        color: #212121;
+        display: block;
+        font-weight: 500;
+    }
+
+    .post-item-mini a:hover {
+        color: #A5D6A7;
+    }
+
+    .category-empty {
+        padding: 2rem;
+        text-align: center;
+        color: #9E9E9E;
+    }
+
+    .view-category-btn {
+        display: inline-block;
+        margin-top: auto;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #FF7043 0%, #FFAB91 100%);
+        color: white;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+        text-align: center;
+    }
+
+    .view-category-btn:hover {
+        box-shadow: 0 6px 18px rgba(255, 112, 67, 0.3);
+        transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+        .categories-hero {
+            padding: 40px 20px;
+        }
+
+        .categories-hero h1 {
+            font-size: 1.75rem;
+        }
+
+        .categories-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @keyframes fadeInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<div class="categories-hero">
+    <h1>📂 Danh Mục</h1>
+    <p>Khám phá các bài viết theo chủ đề</p>
+</div>
+
+<!-- Categories Grid -->
+{% if category_data %}
+<div class="categories-grid">
+    {% for item in category_data %}
+    <div class="category-card">
+        <div class="category-header">
+            <div class="category-name">{{ item.category.name }}</div>
+            <div class="category-count">{{ item.category.post_count }} bài viết</div>
+        </div>
+        <div class="category-posts">
+            {% if item.posts %}
+                <div class="category-posts-title">Bài viết mới nhất</div>
+                {% for post in item.posts %}
+                <div class="post-item-mini">
+                    <a href="{% url 'blog:post_detail' slug=post.slug %}">{{ post.title|truncatewords:5 }}</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="category-empty">
+                    <p>Chưa có bài viết trong danh mục này</p>
+                </div>
+            {% endif %}
+            <a href="{% url 'blog:category_detail' slug=item.category.slug %}" class="view-category-btn">
+                Xem tất cả →
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="text-align: center; padding: 60px 20px;">
+    <p style="font-size: 1.1rem; color: #9E9E9E;">Hiện chưa có danh mục nào</p>
+</div>
+{% endif %}
+
+{% endblock %}
