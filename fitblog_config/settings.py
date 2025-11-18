@@ -77,12 +77,26 @@ WSGI_APPLICATION = 'fitblog_config.wsgi.application'
 # Fallback to SQLite in /tmp for local/development
 import tempfile
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=f'sqlite:///{os.path.join(tempfile.gettempdir(), "db.sqlite3")}',
-        conn_max_age=600
-    )
-}
+# Check if DATABASE_URL is set (Railway/production)
+database_url = os.getenv('DATABASE_URL')
+
+if database_url:
+    # Use external database (PostgreSQL on Railway)
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=database_url,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
+    # Fallback to SQLite for local development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.path.join(tempfile.gettempdir(), 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation
