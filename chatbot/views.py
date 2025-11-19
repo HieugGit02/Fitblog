@@ -5,6 +5,7 @@ import requests
 import os
 import json
 import logging
+import re
 from datetime import datetime
 from .models import NgrokConfig, ChatMessage
 
@@ -18,6 +19,30 @@ def get_ngrok_api_url():
         return url
     # Fallback sang environment variable
     return os.getenv('NGROK_LLM_API', 'https://yyyyy.ngrok-free.app/ask')
+
+def format_bot_response(text):
+    """
+    Format bot response để dễ đọc hơn:
+    - Thêm line breaks sau dấu chấm, hỏi, than
+    - Thêm line breaks trước bullets/numbers
+    - Giữ định dạng gốc nếu có sẵn
+    """
+    if not text:
+        return text
+    
+    # Thêm line break sau dấu chấm (nhưng không phải sau số hoặc viết tắt)
+    text = re.sub(r'([.!?])\s+(?=[A-Z])', r'\1\n', text)
+    
+    # Thêm line break trước bullet points
+    text = re.sub(r'\s*[-•*]\s+', r'\n- ', text)
+    
+    # Thêm line break trước numbered lists
+    text = re.sub(r'\s*(\d+)\.\s+', r'\n\1. ', text)
+    
+    # Xóa multiple line breaks liên tiếp
+    text = re.sub(r'\n\s*\n+', r'\n\n', text)
+    
+    return text.strip()
 
 # Health check cache
 health_cache = {'last_check': None, 'status': None}
@@ -66,6 +91,9 @@ def chat_api(request):
             llm_data = response.json()
             bot_response = llm_data.get('answer', 'Không có câu trả lời từ LLM')
             
+            # Format response để dễ đọc hơn
+            bot_response = format_bot_response(bot_response)
+            
             logger.info(f"✅ LLM response: {bot_response[:100]}...")
             # Save chat history (optional) so admin can review conversations
             try:
@@ -73,14 +101,10 @@ def chat_api(request):
             except Exception:
                 logger.exception("Không thể lưu ChatMessage (bỏ qua)")
 
-            # Include source metadata (useful for frontend display)
-            source_label = ngrok_api_url or 'LLM'
-
             return JsonResponse({
                 'success': True,
                 'response': bot_response,
                 'timestamp': datetime.now().isoformat(),
-                'source': source_label,
                 'code': 'LLM_SUCCESS'
             })
             
@@ -88,25 +112,23 @@ def chat_api(request):
             logger.error("❌ LLM Timeout")
             return JsonResponse({
                 'success': False,
-                'error': '⏱️ Colab LLM đang xử lý chậm, vui lòng thử lại',
-                'code': 'TIMEOUT',
-                'hint': 'Hãy chắc chắn Colab đang chạy và Ngrok tunnel còn sống'
+                'error': '⏱️ Chatbot đang xử lý chậm, vui lòng thử lại sau',
+                'code': 'TIMEOUT'
             }, status=504)
             
         except requests.exceptions.ConnectionError:
             logger.error("❌ LLM Connection Error")
             return JsonResponse({
                 'success': False,
-                'error': '📡 Ngrok offline - Colab backend không kết nối được',
-                'code': 'CONNECTION_ERROR',
-                'hint': 'Hãy kiểm tra Colab và tạo Ngrok tunnel mới'
+                'error': '📡 Chatbot tạm thời offline, vui lòng thử lại sau',
+                'code': 'CONNECTION_ERROR'
             }, status=503)
             
         except requests.exceptions.HTTPError as e:
             logger.error(f"❌ LLM HTTP Error: {e}")
             return JsonResponse({
                 'success': False,
-                'error': f'🚨 LLM trả về lỗi: {e.response.status_code}',
+                'error': '🚨 Chatbot gặp lỗi, vui lòng thử lại sau',
                 'code': 'LLM_HTTP_ERROR'
             }, status=502)
             
@@ -114,14 +136,14 @@ def chat_api(request):
             logger.error("❌ Invalid LLM response format")
             return JsonResponse({
                 'success': False,
-                'error': '❌ Định dạng response từ LLM không hợp lệ',
+                'error': '❌ Không nhận được phản hồi từ chatbot',
                 'code': 'INVALID_RESPONSE'
             }, status=502)
             
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
-            'error': 'Request JSON không hợp lệ',
+            'error': '⚠️ Yêu cầu không hợp lệ',
             'code': 'JSON_ERROR'
         }, status=400)
         
@@ -129,7 +151,7 @@ def chat_api(request):
         logger.error(f"❌ Unexpected error: {str(e)}")
         return JsonResponse({
             'success': False,
-            'error': f'Lỗi server: {str(e)}',
+            'error': '⚠️ Lỗi server, vui lòng thử lại sau',
             'code': 'SERVER_ERROR'
         }, status=500)
 

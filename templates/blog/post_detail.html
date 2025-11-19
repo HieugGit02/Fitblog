@@ -308,6 +308,386 @@
             grid-template-columns: 1fr;
         }
     }
+    /* Layout wrapper for post + sidebar */
+    .post-layout {
+        display: grid;
+        grid-template-columns: 1fr 250px;
+        gap: 40px;
+        align-items: start;
+    }
+
+    @media (max-width: 768px) {
+        /* Stack content and sidebar on small screens */
+        .post-layout {
+            grid-template-columns: 1fr !important;
+            gap: 8px !important;
+            width: 100%;
+        }
+
+        /* Sidebar stays visible but compact on mobile */
+        .post-sidebar {
+            position: static;
+            top: auto;
+            padding: 6px;
+            background: linear-gradient(135deg, rgba(165, 214, 167, 0.08) 0%, rgba(255, 171, 145, 0.05) 100%);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            border: 1px solid rgba(165, 214, 167, 0.15);
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            margin: 0;
+        }
+
+        .sidebar-item {
+            margin-bottom: 0;
+            padding: 4px;
+            background: white;
+            border-radius: 2px;
+            border: 1px solid rgba(165, 214, 167, 0.1);
+            font-size: 0.55rem;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .sidebar-item h4 {
+            font-size: 0.5rem;
+            margin-bottom: 1px;
+            color: #A5D6A7;
+            line-height: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .sidebar-item a {
+            font-size: 0.5rem;
+            color: #7fc0d9;
+            line-height: 1.1;
+            word-break: break-word;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar-item div {
+            font-size: 0.5rem !important;
+            color: #666;
+            line-height: 1.1;
+            overflow: hidden;
+        }
+
+        /* Make featured images responsive and avoid large fixed heights */
+        .post-featured-image {
+            height: auto;
+            max-height: 280px;
+            object-fit: cover;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .post-header {
+            padding: 30px 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .post-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 12px;
+        }
+
+        .post-meta {
+            gap: 10px;
+            font-size: 0.75rem;
+        }
+
+        .post-content {
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+    }
+
+    /* Navigation buttons responsive */
+    @media (max-width: 480px) {
+        .post-layout {
+            gap: 3px !important;
+            grid-template-columns: 1fr !important;
+        }
+
+        .post-sidebar {
+            grid-template-columns: 1fr;
+            padding: 4px;
+            gap: 3px;
+        }
+
+        .sidebar-item {
+            padding: 3px;
+            font-size: 0.52rem;
+            border-radius: 2px;
+        }
+
+        .sidebar-item h4 {
+            font-size: 0.5rem;
+            margin-bottom: 1px;
+            line-height: 1;
+        }
+
+        .sidebar-item a {
+            font-size: 0.5rem;
+            line-height: 1.1;
+        }
+
+        .sidebar-item div {
+            font-size: 0.5rem !important;
+            line-height: 1.1;
+        }
+
+        .post-header h1 {
+            font-size: 1.25rem;
+            margin-bottom: 8px;
+        }
+
+        .post-header {
+            padding: 18px 12px;
+            margin-bottom: 20px;
+        }
+
+        .post-meta {
+            gap: 6px;
+            font-size: 0.65rem;
+        }
+
+        .post-featured-image {
+            margin-bottom: 20px;
+            max-height: 250px;
+        }
+
+        .post-content {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .post-tags {
+            margin: 15px 0;
+            padding: 12px;
+        }
+
+        .tag {
+            padding: 5px 10px;
+            font-size: 0.75rem;
+        }
+
+        .related-section {
+            margin: 30px 0 20px 0;
+            padding: 20px;
+        }
+
+        .related-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .comments-section {
+            margin: 30px 0;
+            padding: 20px;
+        }
+
+        .comments-section h3 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .comment-form {
+            padding: 15px;
+        }
+
+        .comment-form h4 {
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 8px;
+            font-size: 0.9rem;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            font-size: 0.95rem;
+            width: 100%;
+        }
+
+        div[style*="display: flex; justify-content: space-between"] {
+            display: flex !important;
+            flex-direction: column;
+            gap: 10px !important;
+            margin-top: 30px;
+        }
+
+        div[style*="display: flex; justify-content: space-between"] a {
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    /* Prevent horizontal scroll on mobile */
+    @media (max-width: 768px) {
+        html, body {
+            overflow-x: hidden;
+        }
+
+        main {
+            padding: 12px !important;
+            margin: 12px auto !important;
+            /* width: 100vw; */
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .post-layout {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .post-header {
+            width: 100%;
+            box-sizing: border-box;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        .post-featured-image {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            margin-left: -12px !important;
+            margin-right: -12px !important;
+            margin-bottom: 20px !important;
+            border-radius: 0 !important;
+            padding: 0 !important;
+        }
+
+        .post-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+        }
+
+        .post-content p {
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .post-content pre {
+            overflow-x: auto;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .post-tags {
+            width: 100% !important;
+            box-sizing: border-box;
+            margin-left: -12px !important;
+            margin-right: -12px !important;
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+
+        .related-posts {
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .comments-section {
+            width: 100%;
+            box-sizing: border-box;
+        }
+    }
+
+    /* Portrait: hide sidebar on phones and make content/tags full-width */
+    @media (max-width: 480px) and (orientation: portrait) {
+        .post-sidebar {
+            display: none !important;
+        }
+
+        .post-layout {
+            grid-template-columns: 1fr !important;
+            gap: 6px !important;
+            width: 100% !important;
+        }
+
+        /* Force override inline style on wrapper div */
+        div[style*="display: grid; grid-template-columns: 1fr 220px"] {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+            gap: 6px !important;
+            align-items: start !important;
+        }
+
+        .post-content, .post-tags {
+            width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        .post-header {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+        }
+
+        div[style*="display: flex; justify-content: space-between"] {
+            margin-top: 20px !important;
+        }
+    }
+
+    /* Landscape phones: show compact sidebar and tighter columns */
+    @media (max-width: 480px) and (orientation: landscape) {
+        .post-sidebar {
+            display: grid !important;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            padding: 6px;
+            width: 160px !important;
+            box-sizing: border-box !important;
+        }
+
+        .post-layout {
+            grid-template-columns: 1fr 160px !important;
+            gap: 10px !important;
+        }
+
+        /* Force override inline style for landscape */
+        div[style*="display: grid; grid-template-columns: 1fr 220px"] {
+            display: grid !important;
+            grid-template-columns: 1fr 160px !important;
+            gap: 10px !important;
+            align-items: start !important;
+        }
+
+        .post-featured-image {
+            max-height: 160px !important;
+        }
+
+        .post-content {
+            font-size: 0.9rem !important;
+        }
+    }
+
 </style>
 {% endblock %}
 
@@ -323,7 +703,7 @@
     </div>
 </div>
 
-<div style="display: grid; grid-template-columns: 1fr 250px; gap: 40px; align-items: start;">
+<div style="display: grid; grid-template-columns: 1fr 220px; gap: 20px; align-items: start;">
     <div>
         <!-- Featured Image -->
         {% if post.featured_image %}

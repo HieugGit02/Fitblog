@@ -281,7 +281,7 @@ class MessengerWidget {
             .messages-container {
                 flex: 1;
                 overflow-y: auto;
-                padding: 16px;
+                padding: 10px;
                 background: linear-gradient(135deg, rgba(248, 247, 249, 1) 0%, rgba(200, 230, 245, 0.1) 100%);
                 display: flex;
                 flex-direction: column;
@@ -330,21 +330,26 @@ class MessengerWidget {
             .message-content {
                 max-width: 80%;
                 padding: 10px 14px;
-                border-radius: 12px;
                 font-size: 14px;
-                line-height: 1.4;
+                line-height: 1.5;
                 word-wrap: break-word;
+                text-align: justify;
+                white-space: pre-wrap;
+                overflow-wrap: break-word;
             }
 
             .message.bot .message-content {
                 background: linear-gradient(135deg, #c8e6f5 0%, rgba(127, 192, 217, 0.2) 100%);
                 color: #333;
                 border: 1px solid rgba(127, 192, 217, 0.3);
+                border-radius: 0px 10px 10px 10px;
             }
 
             .message.user .message-content {
                 background: linear-gradient(135deg, #FF7043 0%, #FFAB91 100%);
                 color: white;
+                text-align: right;
+                border-radius: 10px 10px 0px 10px;
             }
 
             .message.system .message-content {
@@ -354,6 +359,7 @@ class MessengerWidget {
                 text-align: center;
                 max-width: 100%;
                 padding: 8px;
+                border-radius: 12px;
                 border-radius: 6px;
                 font-style: italic;
             }
@@ -413,7 +419,7 @@ class MessengerWidget {
 
             .message-content.typing::after {
                 content: '';
-                display: inline-block;
+                display: inline-block !important;
                 width: 6px;
                 height: 14px;
                 margin-left: 6px;
@@ -423,21 +429,30 @@ class MessengerWidget {
                 animation: blink-caret 1s steps(1,end) infinite;
             }
 
+            /* Remove cursor mark after typing completes */
+            .message-content:not(.typing)::after {
+                display: none !important;
+            }
+
             /* Message metadata (time / source) */
             .message-meta {
                 display: block;
                 font-size: 11px;
-                color: #777;
+                color: #999;
                 margin-top: 6px;
+                padding-top: 4px;
+                border-top: 1px solid rgba(200,200,200,0.3);
+            }
+
+            .message-meta .time {
+                font-size: 11px;
+                color: #999;
+                font-weight: normal;
+                opacity: 0.8;
             }
 
             .message-meta .source {
-                display: inline-block;
-                background: rgba(0,0,0,0.04);
-                padding: 2px 6px;
-                border-radius: 6px;
-                margin-right: 6px;
-                font-size: 10px;
+                display: none;
             }
 
             @keyframes blink-caret {
@@ -676,13 +691,15 @@ class MessengerWidget {
                 if (content._timer) {
                     clearTimeout(content._timer);
                 }
+                // Remove typing indicator (cursor mark)
+                content.classList.remove('typing');
                 // append metadata if provided
                 if (meta && (meta.timestamp || meta.source)) {
                     const metaEl = document.createElement('div');
                     metaEl.className = 'message-meta';
-                    const sourcePart = meta.source ? `<span class="source">${meta.source}</span>` : '';
-                    const timePart = meta.timestamp ? `<span class="time">${new Date(meta.timestamp).toLocaleString()}</span>` : '';
-                    metaEl.innerHTML = sourcePart + timePart;
+                    // Only show timestamp, hide source (API endpoint)
+                    const timePart = meta.timestamp ? `<span class="time">${new Date(meta.timestamp).toLocaleTimeString()}</span>` : '';
+                    metaEl.innerHTML = timePart;
                     content.appendChild(metaEl);
                 }
             }
