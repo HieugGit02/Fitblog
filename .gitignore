@@ -16,3 +16,4 @@ staticfiles/
 .env.local
 .env.*.local
 node_modules/
+change_admin.py

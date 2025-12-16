@@ -44,6 +44,7 @@
         <a href="{% url 'blog:home' %}">Trang chủ</a>
         <a href="{% url 'blog:post_list' %}">Blog</a>
         <a href="{% url 'blog:categories' %}">Danh Mục</a>
+        <a href="{% url 'products:product_list' %}" class="nav-products">Sản Phẩm</a>
         {% if user.is_staff %}
             <a href="{% url 'admin:index' %}">Admin</a>
         {% endif %}
@@ -65,7 +66,7 @@
     </footer>
 
     <!-- Messenger Widget -->
-    <script src="{% static 'js/header.js' %}?v=1"></script>
+    <script src="{% static 'js/header.js' %}?v=8"></script>
     <script src="{% static 'js/messenger.js' %}?v=9"></script>
 
     {% block extra_js %}{% endblock %}

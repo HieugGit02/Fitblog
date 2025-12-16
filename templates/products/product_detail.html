@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load product_filters %}
+
+{% block title %}{{ product.name }} - Fitblog Shop{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/product_detail.css' %}">
+
+<div class="container py-5 product-detail">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4" style="font-size: 0.9rem;">
+        <a href="{% url 'products:product_list' %}?category={{ product.category.slug }}" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">
+            {{ product.category.name }}
+        </a>
+        <span style="color: #999; margin: 0 0.5rem;">›</span>
+        <span style="color: #333;">{{ product.name }}</span>
+    </nav>
+
+    <!-- Product Detail Grid Layout -->
+    <div class="product-detail-wrapper">
+        <!-- LEFT: Product Image (Sticky) -->
+        <div class="product-image-section">
+            <div class="product-image-container">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}">
+                {% else %}
+                    <div class="product-image-placeholder">
+                        <p>Chưa có hình ảnh sản phẩm</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- RIGHT: Product Info -->
+        <div class="product-info-section">
+            <!-- Header -->
+            <div class="product-header">
+                <span class="product-category-badge">{{ product.category.name }}</span>
+                <h1 class="product-title">{{ product.name }}</h1>
+                <p class="product-subtitle">{{ product.supplement_type|upper }} - Chất lượng cao</p>
+            </div>
+
+            <!-- Rating -->
+            <div class="rating-section">
+                <div class="rating-stars">
+                    {% for i in rating_range %}
+                        {% if i <= avg_rating %}★{% else %}☆{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="rating-info">
+                    <div class="rating-value">{% if avg_rating %}{{ avg_rating|floatformat:1 }}{% else %}0{% endif %}</div>
+                    <div class="rating-count">({{ review_count }} đánh giá)</div>
+                </div>
+            </div>
+
+            <!-- Price Hero Section -->
+            <div class="price-hero">
+                <div class="price-hero-content">
+                    <div class="price-label">Giá hiện tại</div>
+                    <div class="price-display">
+                        <div class="current-price">{{ product.get_discounted_price|floatformat:0|format_price }}₫</div>
+                        {% if product.discount_percent > 0 %}
+                            <div class="original-price">{{ product.price|floatformat:0|format_price }}₫</div>
+                        {% endif %}
+                    </div>
+                    {% if product.discount_percent > 0 %}
+                        <span class="discount-badge">Giảm {{ product.discount_percent }}%</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Key Features -->
+            <div class="key-features">
+                <div class="feature-card">
+                    <div class="feature-label">Khẩu Phần</div>
+                    <div class="feature-value">{{ product.serving_size }}</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-label">Số Lượng</div>
+                    <div class="feature-value">{% if product.stock > 0 %} {{ product.stock }} {% else %}Hết hàng{% endif %}</div>
+                </div>
+            </div>
+
+            <!-- Action Buttons with Quantity -->
+            <div class="action-buttons-section">
+                <!-- Flavor Selection (nếu có) -->
+                {% if product.flavors.all %}
+                <div class="flavor-selector">
+                    <label class="flavor-label">Chọn Hương Vị:</label>
+                    <div class="flavor-buttons">
+                        {% for flavor_obj in product.flavors.all %}
+                            <button 
+                                class="flavor-btn {% if forloop.first %}active{% endif %}" 
+                                data-flavor="{{ flavor_obj.flavor }}"
+                                onclick="selectFlavor(this)"
+                                {% if not flavor_obj.is_available %}disabled{% endif %}
+                            >
+                                {{ flavor_obj.flavor }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" id="selected-flavor" value="">
+                </div>
+                {% endif %}
+                
+                <div class="quantity-selector">
+                    <label class="quantity-label">Số lượng:</label>
+                    <div class="quantity-input">
+                        <button class="qty-btn" onclick="decreaseQty()">−</button>
+                        <input type="number" id="quantity" class="qty-field" value="1" min="1">
+                        <button class="qty-btn" onclick="increaseQty()">+</button>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn-action btn-primary-action" onclick="addToCart()">
+                        Thêm Giỏ Hàng
+                    </button>
+                    <button class="btn-action btn-secondary-action">
+                        Thêm Wishlist
+                    </button>
+                </div>
+            </div>
+
+            <!-- Description -->
+            {% if product.description %}
+            <div class="description-section">
+                <h3>Mô Tả Sản Phẩm</h3>
+                <p>{{ product.description }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Nutrition Section -->
+    {% if product.protein_per_serving or product.carbs_per_serving or product.fat_per_serving or product.calories_per_serving %}
+    <div class="nutrition-section">
+        <h2 class="section-title">Thông Tin Dinh Dưỡng</h2>
+        <div class="nutrition-grid">
+            {% if product.protein_per_serving %}
+            <div class="nutrition-item">
+                <div class="nutrition-value">{{ product.protein_per_serving|floatformat:1 }}g</div>
+                <div class="nutrition-label">Protein</div>
+            </div>
+            {% endif %}
+
+            {% if product.carbs_per_serving %}
+            <div class="nutrition-item">
+                <div class="nutrition-value">{{ product.carbs_per_serving|floatformat:1 }}g</div>
+                <div class="nutrition-label">Carbs</div>
+            </div>
+            {% endif %}
+
+            {% if product.fat_per_serving %}
+            <div class="nutrition-item">
+                <div class="nutrition-value">{{ product.fat_per_serving|floatformat:1 }}g</div>
+                <div class="nutrition-label">Fat</div>
+            </div>
+            {% endif %}
+
+            {% if product.calories_per_serving %}
+            <div class="nutrition-item">
+                <div class="nutrition-value">{{ product.calories_per_serving|floatformat:0 }}</div>
+                <div class="nutrition-label">Kcal</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tags & Goals -->
+    {% if product.get_tags_list or product.get_goals_list %}
+    <div class="tags-section">
+        <h2 class="section-title">Đặc Điểm</h2>
+        <div class="tags-list">
+            {% if product.get_tags_list %}
+                {% for tag in product.get_tags_list %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            {% endif %}
+            {% if product.get_goals_list %}
+                {% for goal in product.get_goals_list %}
+                    <span class="tag">{{ goal }}</span>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Ingredients -->
+    {% if product.ingredients or product.flavor %}
+    <div class="description-section">
+        {% if product.flavor %}
+            <h3>Hương Vị</h3>
+            <p>{{ product.flavor }}</p>
+        {% endif %}
+        {% if product.ingredients %}
+            <h3>Thành Phần</h3>
+            <p>{{ product.ingredients }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Reviews Section -->
+    <div class="reviews-container">
+        <h2 class="section-title">Đánh Giá Từ Khách Hàng</h2>
+
+        <!-- Success/Error Message -->
+        {% if message %}
+        <div class="alert {% if 'Cảm ơn' in message %}alert-success{% else %}alert-danger{% endif %}" role="alert">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        {% if reviews %}
+            {% for review in reviews %}
+            <div class="review-item">
+                <div class="review-header">
+                    <div>
+                        <div class="review-author">{{ review.author_name }}</div>
+                        <div class="review-date">{{ review.created_at|date:"d/m/Y" }}</div>
+                    </div>
+                    <div class="review-rating">
+                        {% for i in rating_range %}
+                            {% if i <= review.rating %}★{% else %}☆{% endif %}
+                        {% endfor %}
+                        {{ review.rating }}/5
+                    </div>
+                </div>
+                <div class="review-title">{{ review.title }}</div>
+                <div class="review-content">{{ review.content }}</div>
+                <div class="tags-list">
+                    {% if review.is_verified_purchase %}
+                        <span class="tag">Xác minh mua hàng</span>
+                    {% endif %}
+                    <button class="helpful-btn" data-review-id="{{ review.id }}" onclick="markHelpful(this)">
+                        👍 <span class="helpful-count">{{ review.helpful_count }}</span> người tìm hữu ích
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="description-section">
+                <p>Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+            </div>
+        {% endif %}
+
+        <!-- Review Form -->
+        <div class="description-section" style="margin-top: 2rem;">
+            <h3>Để Lại Đánh Giá</h3>
+            <form method="post" class="mt-3">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Tên của bạn</label>
+                    <input type="text" class="form-control" name="author_name" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="author_email" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Đánh giá</label>
+                    <select class="form-select" name="rating" required>
+                        <option value="">-- Chọn --</option>
+                        <option value="5">★★★★★ Tuyệt vời (5 sao)</option>
+                        <option value="4">★★★★ Rất tốt (4 sao)</option>
+                        <option value="3">★★★ Tốt (3 sao)</option>
+                        <option value="2">★★ Bình thường (2 sao)</option>
+                        <option value="1">★ Không tốt (1 sao)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tiêu đề</label>
+                    <input type="text" class="form-control" name="title" placeholder="VD: Tuyệt vời!" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nội dung</label>
+                    <textarea class="form-control" name="content" rows="4" placeholder="Chia sẻ trải nghiệm..." required></textarea>
+                </div>
+
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" name="is_verified_purchase" id="verified">
+                    <label class="form-check-label" for="verified">
+                        Tôi đã mua sản phẩm này
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-action btn-primary-action">Gửi Đánh Giá</button>
+            </form>
+        </div>
+
+        <!-- Recommendations Section -->
+        {% if recommendations %}
+        <div class="recommendations-section" style="margin-top: 3rem;">
+            <h2 class="section-title">Sản Phẩm Tương Tự</h2>
+            <div class="recommendations-grid">
+                {% for rec in recommendations %}
+                <a href="{% url 'products:product_detail' rec.slug %}" class="recommendation-card text-decoration-none">
+                    <div class="rec-content">
+                        <h6 class="rec-title">{{ rec.name }}</h6>
+                        <div class="rec-rating">
+                            {% if rec.avg_rating %}
+                                {% for i in "12345" %}
+                                    {% if i|add:"0" <= rec.avg_rating %}★{% else %}☆{% endif %}
+                                {% endfor %}
+                                <small>({{ rec.review_count }})</small>
+                            {% else %}
+                                <span class="text-muted">Chưa có đánh giá</span>
+                            {% endif %}
+                        </div>
+                        <p class="rec-price">
+                            <strong>{{ rec.get_discounted_price|floatformat:0|format_price }} ₫</strong>
+                        </p>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Flavor selection handler
+    function selectFlavor(button) {
+        // Remove active class from all flavor buttons
+        document.querySelectorAll('.flavor-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Add active class to clicked button
+        button.classList.add('active');
+        
+        // Save selected flavor to hidden input
+        const flavorValue = button.getAttribute('data-flavor');
+        document.getElementById('selected-flavor').value = flavorValue;
+        
+        // Save to localStorage for persistence
+        localStorage.setItem('selectedFlavor', flavorValue);
+    }
+
+    // Initialize flavor selection on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const flavorBtns = document.querySelectorAll('.flavor-btn');
+        if (flavorBtns.length > 0) {
+            // Check if there's a saved flavor in localStorage
+            const savedFlavor = localStorage.getItem('selectedFlavor');
+            
+            // Select first button by default, or the saved one
+            flavorBtns.forEach((btn, index) => {
+                if (savedFlavor && btn.getAttribute('data-flavor') === savedFlavor) {
+                    btn.classList.add('active');
+                    document.getElementById('selected-flavor').value = savedFlavor;
+                } else if (index === 0) {
+                    btn.classList.add('active');
+                    document.getElementById('selected-flavor').value = btn.getAttribute('data-flavor');
+                }
+            });
+        }
+    });
+
+    function increaseQty() {
+        const qty = document.getElementById('quantity');
+        qty.value = parseInt(qty.value) + 1;
+    }
+
+    function decreaseQty() {
+        const qty = document.getElementById('quantity');
+        if (parseInt(qty.value) > 1) {
+            qty.value = parseInt(qty.value) - 1;
+        }
+    }
+
+    function addToCart() {
+        const qty = document.getElementById('quantity').value;
+        alert(`Đã thêm ${qty} sản phẩm vào giỏ hàng!`);
+    }
+
+    function markHelpful(btn) {
+        const reviewId = btn.getAttribute('data-review-id');
+        
+        // Send POST request to API
+        fetch(`/api/reviews/${reviewId}/mark_helpful/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update the count in UI
+                btn.querySelector('.helpful-count').textContent = data.helpful_count;
+                // Show success feedback
+                btn.style.backgroundColor = '#A5D6A7';
+                btn.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    btn.style.transform = 'scale(1)';
+                }, 200);
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

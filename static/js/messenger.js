@@ -348,7 +348,6 @@ class MessengerWidget {
             .message.user .message-content {
                 background: linear-gradient(135deg, #FF7043 0%, #FFAB91 100%);
                 color: white;
-                text-align: right;
                 border-radius: 10px 10px 0px 10px;
             }
 

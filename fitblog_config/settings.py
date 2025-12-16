@@ -15,7 +15,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production-12345')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = config(
+    'DEBUG',
+    default=False,
+    cast=lambda v: v.lower() == 'true'
+)
 
 # ALLOWED_HOSTS configuration - strip whitespace from split values
 # In production, set ALLOWED_HOSTS with your domain
@@ -37,10 +41,12 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'django_filters',  # ← NEW: Filtering for REST API
     'blog',
     'chatbot',
     'cloudinary_storage',
     'cloudinary',
+    'products',  # ← NEW: Products & Recommendations
 ]
 
 MIDDLEWARE = [
@@ -130,6 +136,16 @@ LANGUAGE_CODE = 'vi-VN'
 TIME_ZONE = 'Asia/Ho_Chi_Minh'
 USE_I18N = True
 USE_TZ = True
+
+
+# ===== SESSION CONFIGURATION =====
+# Session timeout: 30 ngày (cho admin không bị đăng xuất)
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Lưu session vào database
+SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 ngày (tính bằng giây)
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True  # Cập nhật thời gian hết hạn mỗi lần request
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Session tồn tại lâu dài, không đóng khi tắt browser
 
 
 # Static files (CSS, JavaScript, Images)
