@@ -15,11 +15,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production-12345')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config(
-    'DEBUG',
-    default=False,
-    cast=lambda v: v.lower() == 'true'
-)
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 # ALLOWED_HOSTS configuration - strip whitespace from split values
 # In production, set ALLOWED_HOSTS with your domain
