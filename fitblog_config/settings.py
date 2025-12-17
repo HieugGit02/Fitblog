@@ -3,7 +3,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from decouple import config
 import dj_database_url
-# import cloudinary
+import cloudinary
 # import cloudinary.uploader
 # from cloudinary.utils import cloudinary_url
 load_dotenv()
@@ -12,7 +12,9 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production-12345')
+# SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production-12345')
+SECRET_KEY = config('SECRET_KEY')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -165,12 +167,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ===== CORS Configuration =====
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:8000",
+#     "http://127.0.0.1:8000",
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+# ]
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -184,10 +186,12 @@ REST_FRAMEWORK = {
 }
 
 # ===== Chatbot Settings =====
-NGROK_LLM_API = os.getenv(
-    'NGROK_LLM_API',
-    'https://yyyyy.ngrok-free.app/ask'  # Sẽ cập nhật sau
-)
+# NGROK_LLM_API = os.getenv(
+#     'NGROK_LLM_API',
+#     'https://yyyyy.ngrok-free.app/ask'  # Sẽ cập nhật sau
+# )
+# Chatbot API
+NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
 
 # ===== Logging =====
 LOGGING = {
@@ -258,8 +262,7 @@ else:
     # Use WhiteNoise without manifest for production
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-# Chatbot API
-NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
+
 
 
 
@@ -269,5 +272,12 @@ CLOUDINARY_STORAGE = {
     'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
     'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
+
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
+    secure=True
+)
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
