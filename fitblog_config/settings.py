@@ -265,9 +265,9 @@ NGROK_LLM_API = config('NGROK_LLM_API', default='http://localhost:8001/ask')
 
 # Cấu hình key (Lấy từ Dashboard Cloudinary)
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'dt7txilej',
-    'API_KEY': '233841116172244',
-    'API_SECRET': 'qE3BX_pvuI-xZvlAZAT46-zMP1o'
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
