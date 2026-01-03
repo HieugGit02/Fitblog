@@ -421,5 +421,28 @@
         }
         return cookieValue;
     }
+    
+    // Track this product view
+    document.addEventListener('DOMContentLoaded', function() {
+        const productId = {{ product.id }};
+        fetch('{% url "products:track_product_click" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({
+                product_id: productId,
+                event_type: 'click'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Product view tracked:', data);
+        })
+        .catch(error => {
+            console.error('Tracking error:', error);
+        });
+    });
 </script>
 {% endblock %}

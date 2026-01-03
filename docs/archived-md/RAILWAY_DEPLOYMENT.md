@@ -18,7 +18,7 @@
 
 ### 1.1 Kiểm tra toàn bộ migrations
 ```bash
-cd /home/hieuhome/CaoHoc/doanratruong/fitblog/Fitblog
+cd /fitblog/Fitblog
 
 # Kiểm tra trạng thái migrations
 python manage.py showmigrations
@@ -264,7 +264,7 @@ Deployments → click deployment cũ → "Rollback"
 
 ```bash
 # 1. Chuẩn bị local
-cd /home/hieuhome/CaoHoc/doanratruong/fitblog/Fitblog
+cd /fitblog/Fitblog
 python manage.py migrate
 python manage.py collectstatic --noinput
 python manage.py createsuperuser  # (tạo tài khoản admin)

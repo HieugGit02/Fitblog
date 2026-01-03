@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Xóa Hồ Sơ - Fitblog{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-danger">
+                <!-- Header -->
+                <div class="card-header bg-danger text-white text-center py-4">
+                    <h1 class="card-title h4 mb-1">⚠️ Xóa Hồ Sơ Vĩnh Viễn</h1>
+                    <p class="text-light mb-0">Hành động này không thể được hoàn tác</p>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body p-4">
+                    <!-- Warning Alert -->
+                    <div class="alert alert-danger" role="alert">
+                        <h5 class="alert-heading">🚨 Cảnh báo!</h5>
+                        <p>Bạn sắp xóa hồ sơ cá nhân và toàn bộ dữ liệu liên quan:</p>
+                        <ul class="mb-0">
+                            <li><strong>Session ID:</strong> {{ user_profile.session_id|truncatechars:20 }}</li>
+                            <li><strong>Tuổi:</strong> {{ user_profile.age }} tuổi</li>
+                            <li><strong>Cân nặng:</strong> {{ user_profile.weight_kg|floatformat:1 }} kg</li>
+                            <li><strong>Chiều cao:</strong> {{ user_profile.height_cm|floatformat:1 }} cm</li>
+                            <li><strong>Mục tiêu:</strong> {{ user_profile.get_goal_display }}</li>
+                            <li><strong>Lịch sử gợi ý:</strong> {{ recommendation_count }} records</li>
+                        </ul>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="alert alert-info" role="alert">
+                        <strong>ℹ️ Thông Tin Quan Trọng</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Session hiện tại sẽ bị xóa</li>
+                            <li>Toàn bộ lịch sử gợi ý sẽ bị xóa</li>
+                            <li>Bạn sẽ phải setup lại hồ sơ nếu muốn dùng tiếp</li>
+                            <li>Lần truy cập tiếp theo sẽ tạo session và hồ sơ mới</li>
+                        </ul>
+                    </div>
+
+                    <!-- Form -->
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Confirmation text -->
+                        <div class="mb-4">
+                            <label for="confirm_text" class="form-label fw-bold">
+                                Để xóa, vui lòng nhập: <code>XÓA HỒNG SƠ</code>
+                            </label>
+                            <input 
+                                type="text" 
+                                id="confirm_text"
+                                name="confirm_text"
+                                class="form-control"
+                                placeholder="Gõ chính xác: XÓA HỒNG SƠ"
+                                required
+                            >
+                            <small class="text-muted d-block mt-1">
+                                Điều này để tránh xóa vô tình
+                            </small>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                🗑️ Xóa Hồ Sơ Vĩnh Viễn
+                            </button>
+                            <a href="{% url 'products:user_profile_view' %}" class="btn btn-outline-secondary btn-lg">
+                                ← Hủy
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-light text-center py-3">
+                    <small class="text-danger">
+                        <strong>Cảnh báo:</strong> Bạn có chắc chắn muốn tiếp tục không?
+                    </small>
+                </div>
+            </div>
+
+            <!-- Alternative: Reset Option -->
+            <div class="mt-4 text-center">
+                <p class="text-muted">
+                    <strong>Không muốn xóa hoàn toàn?</strong>
+                </p>
+                <p>
+                    <a href="{% url 'products:user_profile_reset' %}" class="btn btn-outline-warning">
+                        🔄 Reset Hồ Sơ (Giữ Session)
+                    </a>
+                </p>
+                <small class="text-muted">
+                    Reset sẽ xóa thông tin nhưng giữ lại session, bạn có thể setup lại
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSS -->
+<style>
+    .card {
+        border-width: 2px;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+        transform: scale(1.02);
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+    }
+</style>
+
+<!-- JavaScript: Validation -->
+<script>
+document.querySelector('form').addEventListener('submit', function(e) {
+    const input = document.getElementById('confirm_text').value.trim();
+    if (input !== 'XÓA HỒNG SƠ') {
+        e.preventDefault();
+        alert('❌ Vui lòng nhập chính xác: XÓA HỒNG SƠ');
+        return false;
+    }
+});
+</script>
+{% endblock %}

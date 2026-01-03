@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Quick Setup - Fitblog{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0">
+                <!-- Header -->
+                <div class="card-header bg-success text-white text-center py-4">
+                    <h1 class="card-title h4 mb-1">⚡ Quick Setup</h1>
+                    <p class="text-light mb-0">Thiết lập nhanh trong 30 giây</p>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body p-4">
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Form -->
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <!-- Tuổi -->
+                        <div class="mb-3">
+                            <label for="{{ form.age.id_for_label }}" class="form-label fw-bold">
+                                📅 Tuổi của bạn?
+                            </label>
+                            {{ form.age }}
+                            {% if form.age.errors %}
+                                <div class="invalid-feedback d-block">{{ form.age.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Cân nặng -->
+                        <div class="mb-3">
+                            <label for="{{ form.weight_kg.id_for_label }}" class="form-label fw-bold">
+                                ⚖️ Cân nặng (kg)?
+                            </label>
+                            {{ form.weight_kg }}
+                            {% if form.weight_kg.errors %}
+                                <div class="invalid-feedback d-block">{{ form.weight_kg.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Chiều cao -->
+                        <div class="mb-3">
+                            <label for="{{ form.height_cm.id_for_label }}" class="form-label fw-bold">
+                                📏 Chiều cao (cm)?
+                            </label>
+                            {{ form.height_cm }}
+                            {% if form.height_cm.errors %}
+                                <div class="invalid-feedback d-block">{{ form.height_cm.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Mục tiêu -->
+                        <div class="mb-3">
+                            <label for="{{ form.goal.id_for_label }}" class="form-label fw-bold">
+                                🎯 Mục tiêu của bạn?
+                            </label>
+                            {{ form.goal }}
+                            {% if form.goal.errors %}
+                                <div class="invalid-feedback d-block">{{ form.goal.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Mức độ hoạt động -->
+                        <div class="mb-4">
+                            <label for="{{ form.activity_level.id_for_label }}" class="form-label fw-bold">
+                                🏃 Mức độ vận động?
+                            </label>
+                            {{ form.activity_level }}
+                            {% if form.activity_level.errors %}
+                                <div class="invalid-feedback d-block">{{ form.activity_level.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Submit -->
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            ✅ Xong!
+                        </button>
+                    </form>
+
+                    <!-- Info -->
+                    <div class="alert alert-info mt-4 mb-0">
+                        <small>
+                            <strong>💡</strong> Bạn có thể update sau từ trang <strong>Hồ sơ</strong>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

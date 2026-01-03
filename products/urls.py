@@ -20,9 +20,19 @@ urlpatterns = [
     # API endpoints with router - prefix with /api/
     path('api/', include(router.urls)),
     
+    # UserProfile setup pages - with products prefix
+    path('products/setup/', views.user_profile_setup, name='user_profile_setup'),
+    path('products/quick-setup/', views.user_profile_quick_setup, name='user_profile_quick_setup'),
+    path('products/profile/', views.user_profile_view, name='user_profile_view'),
+    path('products/profile/delete/', views.user_profile_delete, name='user_profile_delete'),
+    path('products/profile/reset/', views.user_profile_reset, name='user_profile_reset'),
+    
     # Frontend HTML pages - no /api/ prefix
     path('products/', views.product_list, name='product_list'),
     re_path(r'^products/(?P<slug>[\w\-\:\.%]+)/$', views.product_detail, name='product_detail'),
+    
+    # Tracking endpoint
+    path('api/track-click/', views.track_product_click, name='track_product_click'),
 ]
 
 # Example URLs:

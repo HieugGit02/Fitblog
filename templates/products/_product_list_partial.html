@@ -1,0 +1,79 @@
+<!-- Products Grid -->
+{% load product_filters %}
+
+{% if products %}
+    {% for product in products %}
+    <a href="{% url 'products:product_detail' product.slug %}" 
+       class="product-card-link" 
+       onclick="trackProductClick(event, {{ product.id }})">
+        <div class="product-card">
+            <div class="product-image">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-fluid">
+                {% else %}
+                    <div class="placeholder-image">
+                        [Ảnh sản phẩm]
+                    </div>
+                {% endif %}
+                {% if product.is_featured %}
+                <span class="badge-featured">Nổi bật</span>
+                {% endif %}
+            </div>
+            <div class="product-info">
+                <h3 class="product-name">{{ product.name }}</h3>
+                <p class="product-category">{{ product.category.name }}</p>
+                <p class="product-description">{{ product.description|truncatewords:15 }}</p>
+                
+                <div class="product-rating">
+                    {% if product.avg_rating %}
+                        <div class="rating-stars">
+                            {% for i in "12345" %}
+                                {% if i|add:"0"|add:"-1" < product.avg_rating %}
+                                    <span class="star filled">★</span>
+                                {% else %}
+                                    <span class="star empty">☆</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="rating-value">{{ product.avg_rating|floatformat:1 }}/5</span>
+                    {% else %}
+                        <div class="rating-stars">
+                            <span class="star empty">☆</span>
+                            <span class="star empty">☆</span>
+                            <span class="star empty">☆</span>
+                            <span class="star empty">☆</span>
+                            <span class="star empty">☆</span>
+                        </div>
+                        <span class="rating-value">Chưa có đánh giá</span>
+                    {% endif %}
+                    <span class="rating-count">({{ product.review_count }} đánh giá)</span>
+                </div>
+
+                <div class="product-footer">
+                    {% if product.discount_percent > 0 %}
+                        <div class="price-section">
+                            <div class="price-main">
+                                <span class="product-price">{{ product.discounted_price|floatformat:0|format_price }}₫</span>
+                            </div>
+                            <div class="price-sub">
+                                <span class="product-original-price">{{ product.price|floatformat:0|format_price }}₫</span>
+                                <span class="discount-tag">-{{ product.discount_percent }}%</span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="price-section">
+                            <span class="product-price">{{ product.price|floatformat:0|format_price }}₫</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+{% else %}
+    <div class="empty-state">
+        <h2>Không có sản phẩm</h2>
+        <p>Hiện tại không có sản phẩm trong danh mục này. Vui lòng quay lại sau!</p>
+        <a href="{% url 'blog:home' %}" class="btn btn-primary">Về Trang Chủ</a>
+    </div>
+{% endif %}

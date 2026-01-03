@@ -38,7 +38,7 @@
    - helpful_count
    - created_at, updated_at
 
-👤 UserProfile
+ UserProfile
    - user, preferences, created_at
 
 📊 RecommendationLog

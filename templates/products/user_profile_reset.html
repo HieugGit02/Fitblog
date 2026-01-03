@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reset Hồ Sơ - Fitblog{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-warning">
+                <!-- Header -->
+                <div class="card-header bg-warning text-dark text-center py-4">
+                    <h1 class="card-title h4 mb-1">🔄 Reset Hồ Sơ</h1>
+                    <p class="text-muted mb-0">Xóa thông tin nhưng giữ lại session</p>
+                </div>
+
+                <!-- Body -->
+                <div class="card-body p-4">
+                    <!-- Info Alert -->
+                    <div class="alert alert-info" role="alert">
+                        <h5 class="alert-heading">ℹ️ Reset vs Xóa</h5>
+                        <p><strong>Reset:</strong> Xóa thông tin nhưng giữ session → Có thể setup lại</p>
+                        <p class="mb-0"><strong>Xóa:</strong> Xóa hoàn toàn session → Tạo session mới từ đầu</p>
+                    </div>
+
+                    <!-- Warning Alert -->
+                    <div class="alert alert-warning" role="alert">
+                        <h5 class="alert-heading">⚠️ Thông Tin Sẽ Bị Xóa</h5>
+                        <ul class="mb-0">
+                            <li>Tuổi: {{ user_profile.age }} → Sẽ bị xóa</li>
+                            <li>Cân nặng: {{ user_profile.weight_kg|floatformat:1 }} kg → Sẽ bị xóa</li>
+                            <li>Chiều cao: {{ user_profile.height_cm|floatformat:1 }} cm → Sẽ bị xóa</li>
+                            <li>Mục tiêu: {{ user_profile.get_goal_display }} → Sẽ bị xóa</li>
+                            <li>Mức độ vận động → Sẽ bị xóa</li>
+                            <li><strong style="color: green;">Session sẽ được giữ lại ✓</strong></li>
+                        </ul>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="alert alert-light border" role="alert">
+                        <strong>✓ Điều Tốt Của Reset</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Browser cookie (session) vẫn được giữ</li>
+                            <li>Có thể setup lại hồ sơ bất kỳ lúc nào</li>
+                            <li>Không cần tạo session mới</li>
+                            <li>Dữ liệu cũ sẽ bị xóa (không khôi phục được)</li>
+                        </ul>
+                    </div>
+
+                    <!-- Form -->
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input 
+                                    class="form-check-input" 
+                                    type="checkbox" 
+                                    id="agree" 
+                                    name="agree"
+                                    required
+                                >
+                                <label class="form-check-label" for="agree">
+                                    Tôi đồng ý xóa thông tin và reset hồ sơ
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                🔄 Reset Hồ Sơ
+                            </button>
+                            <a href="{% url 'products:user_profile_view' %}" class="btn btn-outline-secondary btn-lg">
+                                ← Hủy
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-light text-center py-3">
+                    <small class="text-muted">
+                        Session của bạn sẽ được giữ lại, bạn có thể setup lại bất kỳ lúc nào
+                    </small>
+                </div>
+            </div>
+
+            <!-- Info: Delete Full Profile -->
+            <div class="mt-4 text-center">
+                <p class="text-muted">
+                    <strong>Muốn xóa hoàn toàn?</strong>
+                </p>
+                <p>
+                    <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger">
+                        🗑️ Xóa Hồ Sơ Vĩnh Viễn
+                    </a>
+                </p>
+                <small class="text-muted">
+                    Xóa sẽ xóa toàn bộ session và hồ sơ
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSS -->
+<style>
+    .card {
+        border-width: 2px;
+    }
+
+    .btn-warning {
+        background-color: #ffc107;
+        color: #333;
+    }
+
+    .btn-warning:hover {
+        background-color: #e0a800;
+        transform: scale(1.02);
+    }
+
+    .text-warning {
+        color: #ffc107 !important;
+    }
+</style>
+{% endblock %}

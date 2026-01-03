@@ -199,13 +199,13 @@ class ProductAdmin(admin.ModelAdmin):
         if obj.discount_percent > 0:
             return format_html(
                 '<span style="color:green;font-weight:bold;">{} ₫</span> <del style="color:#999">{} ₫</del> <span style="color:red">-{}%</span>',
-                f'{discounted:,.0f}',
-                f'{obj.price:,.0f}',
+                '{:,.0f}'.format(discounted),
+                '{:,.0f}'.format(obj.price),
                 obj.discount_percent
             )
         return format_html(
             '<span style="color:green;font-weight:bold;">{} ₫</span>',
-            f'{obj.price:,.0f}'
+            '{:,.0f}'.format(obj.price)
         )
     price_display.short_description = "Giá"
 
@@ -258,7 +258,7 @@ class ProductReviewAdmin(admin.ModelAdmin):
     actions = ['approve_reviews', 'reject_reviews']
 
     fieldsets = (
-        ('📦 Sản phẩm & 👤 Tác giả', {
+        ('📦 Sản phẩm &  Tác giả', {
             'fields': ('product', 'author_name', 'author_email', 'is_verified_purchase'),
             'description': 'Chọn sản phẩm và nhập thông tin tác giả review'
         }),
@@ -351,7 +351,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     )
 
     def session_id_short(self, obj):
-        return f"{obj.session_id[:12]}..."
+        return '{}...'.format(obj.session_id[:12])
     session_id_short.short_description = "Session ID"
 
     def bmi_display(self, obj):
@@ -362,19 +362,21 @@ class UserProfileAdmin(admin.ModelAdmin):
                 color = 'green'
             else:
                 color = 'orange'
+            bmi_text = '{:.1f}'.format(obj.bmi)
             return format_html(
-                '<span style="color:{};font-weight:bold;">{:.1f}</span>',
+                '<span style="color:{};font-weight:bold;">{}</span>',
                 color,
-                obj.bmi
+                bmi_text
             )
         return "—"
     bmi_display.short_description = "BMI"
 
     def tdee_display(self, obj):
         if obj.tdee:
+            tdee_text = '{:.0f}'.format(obj.tdee)
             return format_html(
-                '<span style="color:purple;font-weight:bold;">{:.0f} kcal/day</span>',
-                obj.tdee
+                '<span style="color:purple;font-weight:bold;"> {} kcal/day</span>',
+                tdee_text
             )
         return "—"
     tdee_display.short_description = "TDEE"
@@ -412,10 +414,11 @@ class RecommendationLogAdmin(admin.ModelAdmin):
 
     def score_display(self, obj):
         color = 'green' if obj.score >= 0.8 else 'orange' if obj.score >= 0.5 else 'red'
+        score_text = '{:.2f}'.format(obj.score)
         return format_html(
-            '<span style="color:{};font-weight:bold;">{:.2f}</span>',
+            '<span style="color:{};font-weight:bold;">{}</span>',
             color,
-            obj.score
+            score_text
         )
     score_display.short_description = "Score"
 

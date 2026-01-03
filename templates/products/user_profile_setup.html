@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Thiết Lập Thông Tin Cá Nhân - Fitblog{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <!-- Header Section -->
+            <div class="mb-5 text-center">
+                <h1 class="fw-bold mb-2" style="font-size: 2.5rem;">Thiết Lập Hồ Sơ</h1>
+                <p class="text-muted" style="font-size: 1.1rem;">Cung cấp thông tin cơ bản để nhận gợi ý sản phẩm phù hợp</p>
+            </div>
+
+            <!-- Main Card -->
+            <div class="card border-0 shadow-sm">
+                <!-- Header Info Box -->
+                <div class="card-header bg-light border-bottom-0 py-3">
+                    <div class="d-flex gap-3">
+                        <div class="flex-shrink-0" style="width: 40px; height: 40px; background: #e7f5ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #0066cc; font-weight: bold;">
+                            i
+                        </div>
+                        <div>
+                            <p class="mb-0 fw-bold">Không cần đăng nhập</p>
+                            <small class="text-muted">Thông tin được lưu an toàn dựa trên session của trình duyệt</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Messages -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <!-- Form -->
+                    <form method="post" novalidate class="needs-validation">
+                        {% csrf_token %}
+
+                        <!-- Section 1: Thông Tin Cơ Bản -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-uppercase" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">Thông Tin Cơ Bản</h6>
+                            
+                            <div class="row g-3 mb-0">
+                                <!-- Tuổi -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.age.id_for_label }}" class="form-label fw-bold">
+                                        Tuổi
+                                        {% if form.age.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.age }}
+                                    {% if form.age.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.age.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">16 - 120 tuổi</small>
+                                </div>
+
+                                <!-- Cân nặng -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.weight_kg.id_for_label }}" class="form-label fw-bold">
+                                        Cân Nặng (kg)
+                                        {% if form.weight_kg.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.weight_kg }}
+                                    {% if form.weight_kg.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.weight_kg.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ví dụ: 75</small>
+                                </div>
+
+                                <!-- Chiều cao -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.height_cm.id_for_label }}" class="form-label fw-bold">
+                                        Chiều Cao (cm)
+                                        {% if form.height_cm.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.height_cm }}
+                                    {% if form.height_cm.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.height_cm.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ví dụ: 175</small>
+                                </div>
+
+                                <!-- Giới tính (nếu có) -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.gender.id_for_label }}" class="form-label fw-bold">
+                                        Giới Tính
+                                        {% if form.gender.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.gender }}
+                                    {% if form.gender.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.gender.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Section 2: Mục Tiêu & Hoạt Động -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-uppercase" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">Mục Tiêu Fitness</h6>
+                            
+                            <div class="row g-3 mb-0">
+                                <!-- Mục tiêu -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.goal.id_for_label }}" class="form-label fw-bold">
+                                        Mục Tiêu
+                                        {% if form.goal.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.goal }}
+                                    {% if form.goal.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.goal.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Mức độ hoạt động -->
+                                <div class="col-md-6">
+                                    <label for="{{ form.activity_level.id_for_label }}" class="form-label fw-bold">
+                                        Mức Độ Hoạt Động
+                                        {% if form.activity_level.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.activity_level }}
+                                    {% if form.activity_level.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.activity_level.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ảnh hưởng đến TDEE (calo hàng ngày)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Section 3: Tùy Chọn (Optional) -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold mb-3 text-uppercase" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">Tùy Chọn (Không Bắt Buộc)</h6>
+                            
+                            <div class="row g-3 mb-0">
+                                <!-- Loại Supplement -->
+                                <div class="col-12">
+                                    <label for="{{ form.preferred_supplement_types.id_for_label }}" class="form-label fw-bold">
+                                        Loại Supplement Ưa Thích
+                                    </label>
+                                    {{ form.preferred_supplement_types }}
+                                    {% if form.preferred_supplement_types.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.preferred_supplement_types.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ví dụ: whey, creatine, vitamins (phân tách bằng dấu phẩy)</small>
+                                </div>
+
+                                <!-- Hạn chế ăn uống -->
+                                <div class="col-12">
+                                    <label for="{{ form.dietary_restrictions.id_for_label }}" class="form-label fw-bold">
+                                        Hạn Chế Ăn Uống
+                                    </label>
+                                    {{ form.dietary_restrictions }}
+                                    {% if form.dietary_restrictions.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.dietary_restrictions.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Ví dụ: vegan, gluten-free, dairy-free</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if user_profile.bmi or user_profile.tdee %}
+                        <hr class="my-4">
+                        <!-- Stats Preview -->
+                        <div class="bg-light p-3 rounded mb-4">
+                            <h6 class="fw-bold mb-3">Chỉ Số Của Bạn</h6>
+                            <div class="row g-3">
+                                {% if user_profile.bmi %}
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>BMI</strong></p>
+                                    <p class="h6 mb-0">{{ user_profile.bmi|floatformat:1 }}</p>
+                                    <small class="text-muted">
+                                        {% if user_profile.bmi < 18.5 %}
+                                            Gầy
+                                        {% elif user_profile.bmi < 25 %}
+                                            Bình thường
+                                        {% elif user_profile.bmi < 30 %}
+                                            Thừa cân
+                                        {% else %}
+                                            Béo phì
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                {% endif %}
+                                {% if user_profile.tdee %}
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>TDEE</strong></p>
+                                    <p class="h6 mb-0">{{ user_profile.tdee|floatformat:0 }} kcal/ngày</p>
+                                    <small class="text-muted">Calo cần tiêu thụ hàng ngày</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Buttons -->
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center pt-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Lưu Thông Tin
+                            </button>
+                            <a href="{% url 'products:product_list' %}" class="btn btn-outline-secondary btn-lg">
+                                Quay Lại
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="card-footer bg-white border-top py-3 text-center">
+                    <small class="text-muted">
+                        Bạn có thể cập nhật thông tin này bất cứ lúc nào từ trang <strong>Hồ sơ cá nhân</strong>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSS Custom -->
+<style>
+    /* Form Controls */
+    .form-control,
+    .form-select {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 0.6rem 0.75rem;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        border-color: #0066cc;
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+        outline: none;
+    }
+
+    /* Labels */
+    .form-label {
+        color: #333;
+        font-size: 0.95rem;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Section Headers */
+    .text-uppercase {
+        color: #666 !important;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: #0066cc;
+        border-color: #0066cc;
+    }
+
+    .btn-primary:hover {
+        background-color: #0052a3;
+        border-color: #0052a3;
+    }
+
+    /* Card */
+    .card {
+        border-radius: 10px;
+    }
+
+    .card-header {
+        border-radius: 10px 10px 0 0;
+    }
+
+    .card-footer {
+        border-radius: 0 0 10px 10px;
+    }
+
+    /* Helpers */
+    hr {
+        opacity: 0.1;
+    }
+
+    .text-danger {
+        color: #dc3545 !important;
+    }
+</style>
+{% endblock %}

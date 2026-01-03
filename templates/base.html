@@ -45,6 +45,7 @@
         <a href="{% url 'blog:post_list' %}">Blog</a>
         <a href="{% url 'blog:categories' %}">Danh Mục</a>
         <a href="{% url 'products:product_list' %}" class="nav-products">Sản Phẩm</a>
+        <a href="{% url 'products:user_profile_view' %}"> Hồ Sơ</a>
         {% if user.is_staff %}
             <a href="{% url 'admin:index' %}">Admin</a>
         {% endif %}
