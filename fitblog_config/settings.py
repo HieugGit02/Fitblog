@@ -138,9 +138,9 @@ USE_TZ = True
 
 
 # ===== SESSION CONFIGURATION =====
-# Session timeout: User profile tồn tại 14 ngày, tự động xóa sau đó
+# Session timeout: User profile tồn tại 3 ngày, tự động xóa sau đó
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Lưu session vào database
-SESSION_COOKIE_AGE = 14 * 24 * 60 * 60  # 14 ngày (tính bằng giây)
+SESSION_COOKIE_AGE = 3 * 24 * 60 * 60  # 3 ngày (tính bằng giây)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True  # Cập nhật thời gian hết hạn mỗi lần request
