@@ -325,6 +325,7 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = [
         'session_id_short',
         'age',
+        'gender',
         'bmi_display',
         'goal',
         'activity_level',
@@ -340,7 +341,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('session_id', 'created_at', 'last_activity')
         }),
         ('Thông số cơ thể', {
-            'fields': ('age', 'weight_kg', 'height_cm', 'bmi', 'tdee')
+            'fields': ('age', 'gender', 'weight_kg', 'height_cm', 'bmi', 'tdee')
         }),
         ('Mục tiêu & Hoạt động', {
             'fields': ('goal', 'activity_level')

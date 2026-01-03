@@ -24,6 +24,7 @@ class UserProfileForm(forms.ModelForm):
             'age',
             'weight_kg',
             'height_cm',
+            'gender',
             'goal',
             'activity_level',
             'preferred_supplement_types',
@@ -51,6 +52,10 @@ class UserProfileForm(forms.ModelForm):
                 'min': '100',
                 'max': '250',
                 'step': '0.1',
+                'required': True,
+            }),
+            'gender': forms.Select(attrs={
+                'class': 'form-control',
                 'required': True,
             }),
             'goal': forms.Select(attrs={

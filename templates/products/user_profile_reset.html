@@ -4,51 +4,75 @@
 {% block title %}Reset Hồ Sơ - Fitblog{% endblock %}
 
 {% block content %}
-<div class="container my-5">
+<div class="container py-5">
     <div class="row justify-content-center">
         <div class="col-lg-6">
-            <div class="card shadow-lg border-warning">
-                <!-- Header -->
-                <div class="card-header bg-warning text-dark text-center py-4">
-                    <h1 class="card-title h4 mb-1">🔄 Reset Hồ Sơ</h1>
-                    <p class="text-muted mb-0">Xóa thông tin nhưng giữ lại session</p>
-                </div>
+            <!-- Header -->
+            <div class="mb-5 text-center">
+                <h1 class="display-6 fw-bold mb-2">Reset Hồ Sơ</h1>
+                <p class="text-muted">Xóa thông tin nhưng giữ lại session để setup lại bất kỳ lúc nào</p>
+            </div>
 
-                <!-- Body -->
+            <!-- Main Card -->
+            <div class="card border-0 shadow-sm mb-4">
                 <div class="card-body p-4">
-                    <!-- Info Alert -->
-                    <div class="alert alert-info" role="alert">
-                        <h5 class="alert-heading">ℹ️ Reset vs Xóa</h5>
-                        <p><strong>Reset:</strong> Xóa thông tin nhưng giữ session → Có thể setup lại</p>
-                        <p class="mb-0"><strong>Xóa:</strong> Xóa hoàn toàn session → Tạo session mới từ đầu</p>
+                    <!-- Info Section -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">THÔNG TIN HIỆN TẠI</h6>
+                        <div style="background: #fef8f0; border-left: 3px solid #ffc107; padding: 12px; border-radius: 4px;">
+                            <div class="row g-2" style="font-size: 0.9rem;">
+                                <div class="col-6">
+                                    <p class="mb-2"><span style="color: #666;">Tuổi:</span> <strong>{{ user_profile.age }}</strong></p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-2"><span style="color: #666;">Cân nặng:</span> <strong>{{ user_profile.weight_kg|floatformat:1 }} kg</strong></p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-0"><span style="color: #666;">Chiều cao:</span> <strong>{{ user_profile.height_cm|floatformat:1 }} cm</strong></p>
+                                </div>
+                                <div class="col-6">
+                                    <p class="mb-0"><span style="color: #666;">Mục tiêu:</span> <strong>{{ user_profile.get_goal_display }}</strong></p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Warning Alert -->
-                    <div class="alert alert-warning" role="alert">
-                        <h5 class="alert-heading">⚠️ Thông Tin Sẽ Bị Xóa</h5>
-                        <ul class="mb-0">
-                            <li>Tuổi: {{ user_profile.age }} → Sẽ bị xóa</li>
-                            <li>Cân nặng: {{ user_profile.weight_kg|floatformat:1 }} kg → Sẽ bị xóa</li>
-                            <li>Chiều cao: {{ user_profile.height_cm|floatformat:1 }} cm → Sẽ bị xóa</li>
-                            <li>Mục tiêu: {{ user_profile.get_goal_display }} → Sẽ bị xóa</li>
-                            <li>Mức độ vận động → Sẽ bị xóa</li>
-                            <li><strong style="color: green;">Session sẽ được giữ lại ✓</strong></li>
-                        </ul>
-                    </div>
-
-                    <!-- Info Box -->
-                    <div class="alert alert-light border" role="alert">
-                        <strong>✓ Điều Tốt Của Reset</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>Browser cookie (session) vẫn được giữ</li>
-                            <li>Có thể setup lại hồ sơ bất kỳ lúc nào</li>
-                            <li>Không cần tạo session mới</li>
-                            <li>Dữ liệu cũ sẽ bị xóa (không khôi phục được)</li>
-                        </ul>
+                    <!-- Explanation -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold mb-3" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">ĐIỀU SẼ XẢY RA</h6>
+                        <div class="list-unstyled">
+                            <div class="d-flex gap-3 mb-3">
+                                <div style="min-width: 24px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background: #f0f0f0; border-radius: 4px; text-align: center; line-height: 24px; color: #666; font-size: 0.8rem;">✓</span>
+                                </div>
+                                <div style="font-size: 0.9rem;">
+                                    <p class="mb-0"><strong>Session được giữ lại</strong></p>
+                                    <small class="text-muted">Browser cookie của bạn vẫn tồn tại</small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3 mb-3">
+                                <div style="min-width: 24px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background: #f0f0f0; border-radius: 4px; text-align: center; line-height: 24px; color: #666; font-size: 0.8rem;">✓</span>
+                                </div>
+                                <div style="font-size: 0.9rem;">
+                                    <p class="mb-0"><strong>Có thể setup lại</strong></p>
+                                    <small class="text-muted">Tất cả thông tin trên sẽ bị xóa, bạn có thể nhập lại</small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-3">
+                                <div style="min-width: 24px;">
+                                    <span style="display: inline-block; width: 24px; height: 24px; background: #f0f0f0; border-radius: 4px; text-align: center; line-height: 24px; color: #666; font-size: 0.8rem;">✓</span>
+                                </div>
+                                <div style="font-size: 0.9rem;">
+                                    <p class="mb-0"><strong>Không cần tạo session mới</strong></p>
+                                    <small class="text-muted">Khác với xóa hồ sơ vĩnh viễn</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Form -->
-                    <form method="post" novalidate>
+                    <form method="post" novalidate class="needs-validation">
                         {% csrf_token %}
                         
                         <div class="mb-4">
@@ -61,44 +85,30 @@
                                     required
                                 >
                                 <label class="form-check-label" for="agree">
-                                    Tôi đồng ý xóa thông tin và reset hồ sơ
+                                    Tôi đồng ý xóa toàn bộ thông tin và reset hồ sơ
                                 </label>
                             </div>
                         </div>
 
                         <!-- Buttons -->
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-center">
-                            <button type="submit" class="btn btn-warning btn-lg">
-                                🔄 Reset Hồ Sơ
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg" style="background-color: #ffc107; color: #333; border: none;">
+                                Reset Hồ Sơ
                             </button>
                             <a href="{% url 'products:user_profile_view' %}" class="btn btn-outline-secondary btn-lg">
-                                ← Hủy
+                                Hủy
                             </a>
                         </div>
                     </form>
                 </div>
-
-                <!-- Footer -->
-                <div class="card-footer bg-light text-center py-3">
-                    <small class="text-muted">
-                        Session của bạn sẽ được giữ lại, bạn có thể setup lại bất kỳ lúc nào
-                    </small>
-                </div>
             </div>
 
-            <!-- Info: Delete Full Profile -->
-            <div class="mt-4 text-center">
-                <p class="text-muted">
-                    <strong>Muốn xóa hoàn toàn?</strong>
-                </p>
-                <p>
-                    <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger">
-                        🗑️ Xóa Hồ Sơ Vĩnh Viễn
-                    </a>
-                </p>
-                <small class="text-muted">
-                    Xóa sẽ xóa toàn bộ session và hồ sơ
-                </small>
+            <!-- Alternative Action -->
+            <div class="text-center">
+                <p class="text-muted mb-2" style="font-size: 0.9rem;">Muốn xóa hoàn toàn?</p>
+                <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger btn-sm">
+                    Xóa Hồ Sơ Vĩnh Viễn
+                </a>
             </div>
         </div>
     </div>
@@ -106,22 +116,22 @@
 
 <!-- CSS -->
 <style>
-    .card {
-        border-width: 2px;
-    }
-
     .btn-warning {
-        background-color: #ffc107;
-        color: #333;
+        transition: none;
     }
 
     .btn-warning:hover {
-        background-color: #e0a800;
-        transform: scale(1.02);
+        background-color: #e0a800 !important;
+        transform: none;
     }
 
-    .text-warning {
-        color: #ffc107 !important;
+    .card {
+        transition: none;
+    }
+
+    .card:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
     }
 </style>
 {% endblock %}

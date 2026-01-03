@@ -449,8 +449,8 @@
 
     /* Individual Recommendation Card */
     .recommendation-card {
-        flex: 0 0 190px;
-        min-width: 190px;
+        flex: 0 0 220px;
+        min-width: 220px;
     }
 
     .recommendation-card a {
@@ -463,14 +463,14 @@
 
     .product-image-wrapper {
         width: 100%;
-        height: 120px;
+        height: 160px;
         background: #fff;
         border-radius: 6px;
         overflow: hidden;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 8px;
+        margin-bottom: 10px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.08);
         transition: none;
     }
@@ -608,7 +608,7 @@
 <script>
 function scrollRecommendations(direction) {
     const container = document.querySelector('.recommendations-container');
-    const scrollAmount = 202; // card width (190px) + gap (12px)
+    const scrollAmount = 232; // card width (220px) + gap (12px)
     
     if (direction === 'left') {
         container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });

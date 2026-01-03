@@ -394,6 +394,11 @@ class UserProfile(models.Model):
         ('active', 'Tích cực (5-6 h/tuần)'),
         ('intense', 'Cực kỳ tích cực (6-7 h/tuần)'),
     ]
+    
+    GENDER_CHOICES = [
+        ('male', 'Nam'),
+        ('female', 'Nữ'),
+    ]
 
     # ========== SESSION TRACKING ==========
     session_id = models.CharField(
@@ -420,6 +425,13 @@ class UserProfile(models.Model):
         blank=True,
         validators=[MinValueValidator(100), MaxValueValidator(250)],
         verbose_name="Chiều cao (cm)"
+    )
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name="Giới tính"
     )
     bmi = models.FloatField(
         null=True,
@@ -496,8 +508,8 @@ class UserProfile(models.Model):
 
         # BMR calculation (Mifflin-St Jeor)
         # BMR = (10 × weight) + (6.25 × height) - (5 × age) + 5 (for men) / -161 (for women)
-        # Assume male (+ 5)
-        bmr = (10 * self.weight_kg) + (6.25 * self.height_cm) - (5 * self.age) + 5
+        gender_factor = 5 if self.gender == 'male' else -161
+        bmr = (10 * self.weight_kg) + (6.25 * self.height_cm) - (5 * self.age) + gender_factor
 
         # Activity factor
         activity_map = {
