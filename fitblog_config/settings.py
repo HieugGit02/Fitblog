@@ -138,13 +138,17 @@ USE_TZ = True
 
 
 # ===== SESSION CONFIGURATION =====
-# Session timeout: 30 ngày (cho admin không bị đăng xuất)
+# Session timeout: User profile tồn tại 14 ngày, tự động xóa sau đó
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Lưu session vào database
-SESSION_COOKIE_AGE = 30 * 24 * 60 * 60  # 30 ngày (tính bằng giây)
+SESSION_COOKIE_AGE = 14 * 24 * 60 * 60  # 14 ngày (tính bằng giây)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True  # Cập nhật thời gian hết hạn mỗi lần request
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Session tồn tại lâu dài, không đóng khi tắt browser
+
+# Django sẽ tự động xóa expired sessions khi:
+# 1. Chạy: python manage.py clearsessions (manual)
+# 2. Hoặc thêm vào crontab: 0 0 * * * python manage.py clearsessions
 
 
 # Static files (CSS, JavaScript, Images)

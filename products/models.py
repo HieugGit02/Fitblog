@@ -7,6 +7,8 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from django.urls import reverse
+from datetime import timedelta
+from django.utils import timezone
 
 # ============================================================================
 # PRODUCT CATEGORY MODEL
@@ -490,6 +492,38 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"User {self.session_id[:8]}... (Goal: {self.goal or 'Not set'})"
+
+    def get_session_age_days(self):
+        """Tính tuổi session (số ngày từ khi tạo đến giờ)"""
+        if self.created_at:
+            age = timezone.now() - self.created_at
+            return age.days
+        return None
+
+    def get_session_age_display(self):
+        """Hiển thị tuổi session dạng text"""
+        age_days = self.get_session_age_days()
+        if age_days is None:
+            return "—"
+        if age_days == 0:
+            return "Hôm nay"
+        elif age_days == 1:
+            return "1 ngày"
+        elif age_days <= 7:
+            return f"{age_days} ngày"
+        elif age_days <= 30:
+            weeks = age_days // 7
+            return f"{weeks} tuần"
+        else:
+            months = age_days // 30
+            return f"{months} tháng"
+
+    def is_session_expired(self, days=30):
+        """Kiểm tra session có hết hạn không (mặc định 30 ngày)"""
+        if not self.created_at:
+            return False
+        expiry_date = self.created_at + timedelta(days=days)
+        return timezone.now() > expiry_date
 
     def calculate_bmi(self):
         """Calculate BMI từ weight & height"""

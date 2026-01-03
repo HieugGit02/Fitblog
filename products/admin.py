@@ -330,15 +330,16 @@ class UserProfileAdmin(admin.ModelAdmin):
         'goal',
         'activity_level',
         'tdee_display',
+        'session_age_display',
         'last_activity'
     ]
-    list_filter = ['goal', 'activity_level', 'created_at']
+    list_filter = ['goal', 'activity_level', 'created_at', 'last_activity']
     search_fields = ['session_id']
-    readonly_fields = ['session_id', 'created_at', 'last_activity']
+    readonly_fields = ['session_id', 'created_at', 'last_activity', 'session_info']
     
     fieldsets = (
         ('Session', {
-            'fields': ('session_id', 'created_at', 'last_activity')
+            'fields': ('session_id', 'session_info', 'created_at', 'last_activity')
         }),
         ('Thông số cơ thể', {
             'fields': ('age', 'gender', 'weight_kg', 'height_cm', 'bmi', 'tdee')
@@ -350,10 +351,65 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('preferred_supplement_types', 'dietary_restrictions')
         }),
     )
+    
+    actions = ['delete_old_sessions']
 
     def session_id_short(self, obj):
         return '{}...'.format(obj.session_id[:12])
     session_id_short.short_description = "Session ID"
+    
+    def session_age_display(self, obj):
+        """Hiển thị tuổi session và cảnh báo nếu quá cũ"""
+        age_display = obj.get_session_age_display()
+        age_days = obj.get_session_age_days()
+        
+        if age_days is None:
+            return "—"
+        
+        # Cảnh báo nếu session > 30 ngày
+        if age_days > 30:
+            return format_html(
+                '<span style="color:red;font-weight:bold;">{} ⚠️</span>',
+                age_display
+            )
+        elif age_days > 14:
+            return format_html(
+                '<span style="color:orange;font-weight:bold;">{}</span>',
+                age_display
+            )
+        else:
+            return format_html(
+                '<span style="color:green;">{}</span>',
+                age_display
+            )
+    session_age_display.short_description = "Tuổi Session"
+    
+    def session_info(self, obj):
+        """Hiển thị thông tin chi tiết về session"""
+        if not obj.created_at:
+            return "—"
+        
+        age_days = obj.get_session_age_days()
+        created = obj.created_at.strftime('%d/%m/%Y %H:%M')
+        last_active = obj.last_activity.strftime('%d/%m/%Y %H:%M')
+        
+        if obj.is_session_expired(30):
+            status = '<span style="color:red;font-weight:bold;">Hết hạn (>30 ngày)</span>'
+        elif obj.is_session_expired(14):
+            status = '<span style="color:orange;font-weight:bold;">Sắp hết hạn (>14 ngày)</span>'
+        else:
+            status = '<span style="color:green;font-weight:bold;">Còn hiệu lực</span>'
+        
+        info = f"""
+        <div style="background:#f9f9f9;padding:10px;border-radius:4px;font-size:0.9rem;">
+            <p><strong>Tuổi Session:</strong> {age_days} ngày</p>
+            <p><strong>Ngày tạo:</strong> {created}</p>
+            <p><strong>Hoạt động cuối:</strong> {last_active}</p>
+            <p><strong>Trạng thái:</strong> {status}</p>
+        </div>
+        """
+        return format_html(info)
+    session_info.short_description = "Thông tin Session"
 
     def bmi_display(self, obj):
         if obj.bmi:
@@ -381,6 +437,19 @@ class UserProfileAdmin(admin.ModelAdmin):
             )
         return "—"
     tdee_display.short_description = "TDEE"
+    
+    def delete_old_sessions(self, request, queryset):
+        """Action: Xóa sessions cũ hơn 30 ngày"""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        cutoff_date = timezone.now() - timedelta(days=30)
+        old_profiles = UserProfile.objects.filter(created_at__lt=cutoff_date)
+        count = old_profiles.count()
+        old_profiles.delete()
+        
+        self.message_user(request, f"Đã xóa {count} session cũ hơn 30 ngày")
+    delete_old_sessions.short_description = "Xóa sessions cũ hơn 30 ngày"
 
 
 @admin.register(RecommendationLog)
