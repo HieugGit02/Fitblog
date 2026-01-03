@@ -2,14 +2,28 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Avg, Count
 from django.http import JsonResponse
+from django.views.decorators.cache import cache_page
+from django.utils.decorators import method_decorator
 from .models import Product, ProductCategory, ProductReview, UserProfile, RecommendationLog
 from .serializers import (
     ProductSerializer, ProductDetailSerializer, ProductCategorySerializer,
     ProductReviewSerializer
 )
+
+
+# ===== THROTTLE CLASSES =====
+class ProductListThrottle(AnonRateThrottle):
+    """Limit: 100 requests per hour for anonymous users"""
+    scope = 'product_list'
+
+
+class ProductDetailThrottle(AnonRateThrottle):
+    """Limit: 200 requests per hour for product details"""
+    scope = 'product_detail'
 
 
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
@@ -23,8 +37,13 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     - GET /api/products/personalized/ - Get personalized recommendations (session-based)
     - GET /api/products/categories/ - List all categories
     """
-    queryset = Product.objects.filter(status='active').prefetch_related('reviews')
+    # ✅ OPTIMIZATION: Added select_related('category') to avoid N+1 queries
+    queryset = Product.objects.filter(status='active')\
+        .select_related('category')\
+        .prefetch_related('reviews')
+    
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    throttle_classes = [ProductListThrottle, ProductDetailThrottle]
     
     # Filtering options
     filterset_fields = {
@@ -50,6 +69,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         return ProductSerializer
     
     @action(detail=False, methods=['get'])
+    @method_decorator(cache_page(60 * 5))  # ✅ Cache 5 minutes
     def categories(self, request):
         """Get all product categories"""
         categories = ProductCategory.objects.all()
@@ -149,15 +169,19 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         
         serializer = ProductSerializer(recommendations, many=True)
         
-        # Log recommendation event
-        for product in recommendations:
-            RecommendationLog.objects.create(
+        # ✅ OPTIMIZATION: Use bulk_create instead of loop (50 queries → 1 query)
+        logs = [
+            RecommendationLog(
                 user_profile=user_profile,
                 recommended_product=product,
                 recommendation_type='personalized',
-                score=0.0,  # Will be set if user interacts
+                score=0.0,
                 reason=f'Personalized for goal: {goal or user_profile.goal}'
             )
+            for product in recommendations
+        ]
+        if logs:
+            RecommendationLog.objects.bulk_create(logs, ignore_conflicts=True)
         
         return Response({
             'count': len(serializer.data),

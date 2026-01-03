@@ -151,6 +151,20 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False  # Session tồn tại lâu dài, không
 # 2. Hoặc thêm vào crontab: 0 0 * * * python manage.py clearsessions
 
 
+# ===== CACHE CONFIGURATION =====
+# ✅ OPTIMIZATION: Added caching to reduce database queries
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'fitblog-cache',
+        'TIMEOUT': 300,  # 5 minutes
+        'OPTIONS': {
+            'MAX_ENTRIES': 1000
+        }
+    }
+}
+
+
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
@@ -182,12 +196,23 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_CREDENTIALS = True
 
 # ===== REST Framework =====
+# ✅ OPTIMIZATION: Added throttling to prevent API spam
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',        # Anonymous users: 100 requests per hour
+        'user': '1000/hour',       # Authenticated users: 1000 requests per hour
+        'product_list': '100/hour',
+        'product_detail': '200/hour',
+    }
 }
 
 # ===== Chatbot Settings =====
