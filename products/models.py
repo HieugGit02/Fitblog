@@ -504,7 +504,12 @@ class UserProfile(models.Model):
         ]
 
     def __str__(self):
-        return f"User {self.session_id[:8]}... (Goal: {self.goal or 'Not set'})"
+        if self.user:
+            return f"{self.user.username} (Goal: {self.goal or 'Not set'})"
+        elif self.session_id:
+            return f"User {self.session_id[:8]}... (Goal: {self.goal or 'Not set'})"
+        else:
+            return f"Profile #{self.id} (Goal: {self.goal or 'Not set'})"
 
     def get_session_age_days(self):
         """Tính tuổi session (số ngày từ khi tạo đến giờ)"""
