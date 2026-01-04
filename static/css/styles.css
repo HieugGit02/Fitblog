@@ -66,6 +66,7 @@ body {
     color: var(--color-black);
     line-height: 1.6;
     transition: background-color var(--transition-base);
+    padding-top: 160px;
 }
 
 /* ===== TYPOGRAPHY ===== */
@@ -182,9 +183,13 @@ nav {
     padding: 1rem 0;
     background: rgba(255, 255, 255, 1);
     flex-wrap: wrap;
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .main-nav.container a {
