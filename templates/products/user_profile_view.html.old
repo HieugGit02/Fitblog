@@ -13,125 +13,10 @@
     </div>
 
     {% if user_profile.age or user_profile.weight_kg %}
-        <!-- User has profile: Show profile info + recommendations -->
+        <!-- User has profile: Show recommendations + profile info -->
         <div class="row g-4">
             
-            <!-- Left: Profile Info (Sticky) -->
-            <div class="col-lg-4">
-                <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
-                    <div class="card-body p-4">
-                        <h5 class="card-title mb-3 fw-bold">Thông Tin Cá Nhân</h5>
-                        
-                        <!-- Basic Info -->
-                        {% if user_profile.age or user_profile.weight_kg or user_profile.height_cm or user_profile.bmi %}
-                        <div class="profile-info-grid mb-3">
-                            {% if user_profile.age %}
-                            <div class="info-item">
-                                <span class="info-label">Tuổi</span>
-                                <span class="info-value">{{ user_profile.age }}</span>
-                            </div>
-                            {% endif %}
-                            
-                            {% if user_profile.weight_kg %}
-                            <div class="info-item">
-                                <span class="info-label">Cân Nặng</span>
-                                <span class="info-value">{{ user_profile.weight_kg|floatformat:0 }} kg</span>
-                            </div>
-                            {% endif %}
-
-                            {% if user_profile.height_cm %}
-                            <div class="info-item">
-                                <span class="info-label">Chiều Cao</span>
-                                <span class="info-value">{{ user_profile.height_cm|floatformat:0 }} cm</span>
-                            </div>
-                            {% endif %}
-                            
-                            {% if user_profile.bmi %}
-                            <div class="info-item">
-                                <span class="info-label">BMI</span>
-                                <span class="info-value">{{ user_profile.bmi|floatformat:1 }}</span>
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <!-- BMI Status -->
-                        {% if user_profile.bmi %}
-                        <div class="mb-3 p-2 bg-light rounded text-center">
-                            <small class="text-muted d-block mb-1">Thực Trạng</small>
-                            <span class="status-badge bg-{{ bmi_status.color }}">
-                                {% if user_profile.bmi < 18.5 %}
-                                    Gầy
-                                {% elif user_profile.bmi < 25 %}
-                                    Bình thường
-                                {% elif user_profile.bmi < 30 %}
-                                    Thừa cân
-                                {% else %}
-                                    Béo phì
-                                {% endif %}
-                            </span>
-                        </div>
-                        {% endif %}
-                        {% endif %}
-
-                        <!-- Divider -->
-                        <hr class="my-3">
-
-                        <!-- Goal & Activity -->
-                        {% if user_profile.goal %}
-                        <div class="mb-2">
-                            <small class="text-muted d-block mb-1">Mục Tiêu</small>
-                            <p class="mb-0 fw-500">
-                                {% if user_profile.goal == "muscle-gain" %}
-                                    Tăng Cơ
-                                {% elif user_profile.goal == "fat-loss" %}
-                                    Giảm Cân
-                                {% elif user_profile.goal == "strength" %}
-                                    Tăng Sức Mạnh
-                                {% elif user_profile.goal == "endurance" %}
-                                    Tăng Sức Bền
-                                {% elif user_profile.goal == "general-health" %}
-                                    Sức Khỏe Chung
-                                {% elif user_profile.goal == "athletic" %}
-                                    Thể Thao
-                                {% else %}
-                                    {{ user_profile.goal }}
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% endif %}
-
-                        {% if user_profile.activity_level %}
-                        <div class="mb-2">
-                            <small class="text-muted d-block mb-1">Hoạt Động</small>
-                            <p class="mb-0 fw-500">{{ user_profile.get_activity_level_display }}</p>
-                        </div>
-                        {% endif %}
-
-                        <!-- TDEE -->
-                        {% if user_profile.tdee %}
-                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded text-center">
-                            <small class="text-muted d-block mb-1">Calo Cần Thiết (TDEE)</small>
-                            <p class="mb-0 h6 text-primary">{{ user_profile.tdee|floatformat:0 }} kcal/ngày</p>
-                        </div>
-                        {% endif %}
-
-                        <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <a href="{% url 'products:user_profile_setup' %}" class="btn btn-primary btn-sm">
-                                Chỉnh Sửa Thông Tin
-                            </a>
-                            <a href="{% url 'products:user_profile_change_password' %}" class="btn btn-outline-warning btn-sm">
-                                Đổi Mật Khẩu
-                            </a>
-                            <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger btn-sm">
-                                Xóa Tài Khoản
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Right: Recommendations & History (Main Content) -->
+            <!-- Left: Recommendations & History (Main Content) -->
             <div class="col-lg-8">
                 
                 <!-- Section 1: Gợi Ý Cho Bạn -->
@@ -254,6 +139,121 @@
                                 </p>
                             </div>
                         {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Profile Info -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+                    <div class="card-body p-4">
+                        <h5 class="card-title mb-3 fw-bold">Thông Tin Cá Nhân</h5>
+                        
+                        <!-- Basic Info -->
+                        {% if user_profile.age or user_profile.weight_kg or user_profile.height_cm or user_profile.bmi %}
+                        <div class="profile-info-grid mb-3">
+                            {% if user_profile.age %}
+                            <div class="info-item">
+                                <span class="info-label">Tuổi</span>
+                                <span class="info-value">{{ user_profile.age }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if user_profile.weight_kg %}
+                            <div class="info-item">
+                                <span class="info-label">Cân Nặng</span>
+                                <span class="info-value">{{ user_profile.weight_kg|floatformat:0 }} kg</span>
+                            </div>
+                            {% endif %}
+
+                            {% if user_profile.height_cm %}
+                            <div class="info-item">
+                                <span class="info-label">Chiều Cao</span>
+                                <span class="info-value">{{ user_profile.height_cm|floatformat:0 }} cm</span>
+                            </div>
+                            {% endif %}
+                            
+                            {% if user_profile.bmi %}
+                            <div class="info-item">
+                                <span class="info-label">BMI</span>
+                                <span class="info-value">{{ user_profile.bmi|floatformat:1 }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- BMI Status -->
+                        {% if user_profile.bmi %}
+                        <div class="mb-3 p-2 bg-light rounded text-center">
+                            <small class="text-muted d-block mb-1">Thực Trạng</small>
+                            <span class="status-badge bg-{{ bmi_status.color }}">
+                                {% if user_profile.bmi < 18.5 %}
+                                    Gầy
+                                {% elif user_profile.bmi < 25 %}
+                                    Bình thường
+                                {% elif user_profile.bmi < 30 %}
+                                    Thừa cân
+                                {% else %}
+                                    Béo phì
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+
+                        <!-- Divider -->
+                        <hr class="my-3">
+
+                        <!-- Goal & Activity -->
+                        {% if user_profile.goal %}
+                        <div class="mb-2">
+                            <small class="text-muted d-block mb-1">Mục Tiêu</small>
+                            <p class="mb-0 fw-500">
+                                {% if user_profile.goal == "muscle-gain" %}
+                                    Tăng Cơ
+                                {% elif user_profile.goal == "fat-loss" %}
+                                    Giảm Cân
+                                {% elif user_profile.goal == "strength" %}
+                                    Tăng Sức Mạnh
+                                {% elif user_profile.goal == "endurance" %}
+                                    Tăng Sức Bền
+                                {% elif user_profile.goal == "general-health" %}
+                                    Sức Khỏe Chung
+                                {% elif user_profile.goal == "athletic" %}
+                                    Thể Thao
+                                {% else %}
+                                    {{ user_profile.goal }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+
+                        {% if user_profile.activity_level %}
+                        <div class="mb-2">
+                            <small class="text-muted d-block mb-1">Hoạt Động</small>
+                            <p class="mb-0 fw-500">{{ user_profile.get_activity_level_display }}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- TDEE -->
+                        {% if user_profile.tdee %}
+                        <div class="mb-3 p-2 bg-primary bg-opacity-10 rounded text-center">
+                            <small class="text-muted d-block mb-1">Calo Cần Thiết (TDEE)</small>
+                            <p class="mb-0 h6 text-primary">{{ user_profile.tdee|floatformat:0 }} kcal/ngày</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'products:user_profile_setup' %}" class="btn btn-primary btn-sm">
+                                Chỉnh Sửa Thông Tin
+                            </a>
+                            <a href="{% url 'products:user_profile_change_password' %}" class="btn btn-outline-warning btn-sm">
+                                Đổi Mật Khẩu
+                            </a>
+                            <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger btn-sm">
+                                Xóa Tài Khoản
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

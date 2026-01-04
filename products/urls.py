@@ -5,7 +5,8 @@ URL routes for products app - REST API endpoints + Frontend pages
 
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
-from . import views
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from . import views, auth_views
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -15,8 +16,21 @@ router.register(r'reviews', views.ProductReviewViewSet, basename='review')
 
 app_name = 'products'
 
+# Authentication URL patterns
+auth_patterns = [
+    path('auth/register/', auth_views.register, name='register'),
+    path('auth/login/', auth_views.login_view, name='login'),
+    path('auth/logout/', auth_views.logout_view, name='logout'),
+    path('auth/password-reset/', auth_views.password_reset_request, name='password_reset_request'),
+    path('auth/password-reset/<str:token>/', auth_views.password_reset_confirm, name='password_reset_confirm'),
+]
+
 # URL patterns
-urlpatterns = [
+urlpatterns = auth_patterns + [
+    # ===== JWT TOKEN ENDPOINTS =====
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
     # API endpoints with router - prefix with /api/
     path('api/', include(router.urls)),
     
@@ -26,6 +40,7 @@ urlpatterns = [
     path('products/profile/', views.user_profile_view, name='user_profile_view'),
     path('products/profile/delete/', views.user_profile_delete, name='user_profile_delete'),
     path('products/profile/reset/', views.user_profile_reset, name='user_profile_reset'),
+    path('products/profile/change-password/', views.user_profile_change_password, name='user_profile_change_password'),
     
     # Frontend HTML pages - no /api/ prefix
     path('products/', views.product_list, name='product_list'),
@@ -41,6 +56,10 @@ urlpatterns = [
 # GET  /api/products/{id}/recommendations/ - API: Recommendations
 # GET  /api/categories/                  - API: List categories
 # GET  /api/reviews/                     - API: List reviews
+#
+# GET  /auth/register/                   - AUTH: Registration page
+# GET  /auth/login/                      - AUTH: Login page
+# POST /auth/logout/                     - AUTH: Logout
 #
 # GET  /products/                        - HTML: Product listing page
 # GET  /products/{slug}/                 - HTML: Product detail page

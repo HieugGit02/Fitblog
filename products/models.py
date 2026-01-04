@@ -4,6 +4,7 @@ Products app models for supplement e-commerce with recommendation system
 """
 
 from django.db import models
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from django.urls import reverse
@@ -297,13 +298,28 @@ class ProductReview(models.Model):
     """
     Review & rating cho sản phẩm
     
+    Dùng cho Collaborative Filtering recommendation:
+    - user_id: Để xác định người đánh giá (dùng làm input cho collab filtering)
+    - product_id: Sản phẩm được đánh giá
+    - rating: Điểm đánh giá (1-5 sao) - tạo user-item matrix
+    
     Example:
-        - product: Whey Protein Gold
-        - author_name: "Minh Phạm"
+        - user: User(id=1, username="john_doe")
+        - product: Whey Protein Gold (id=5)
         - rating: 5
         - content: "Sản phẩm rất tốt, giao nhanh"
         - is_approved: True (chỉ show review approved)
     """
+    # ========== USER & PRODUCT ==========
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='product_reviews',
+        verbose_name="Người dùng",
+        null=True,
+        blank=True,
+        help_text="User đã đăng nhập - dùng cho Collaborative Filtering"
+    )
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
@@ -350,10 +366,21 @@ class ProductReview(models.Model):
         indexes = [
             models.Index(fields=['product', '-rating']),
             models.Index(fields=['-created_at']),
+            models.Index(fields=['user', 'product']),  # Dùng cho Collaborative Filtering
+            models.Index(fields=['user', '-created_at']),  # Tìm review của user
+        ]
+        # Mỗi user chỉ có 1 review cho 1 sản phẩm
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                name='unique_user_product_review',
+                condition=models.Q(user__isnull=False)
+            )
         ]
 
     def __str__(self):
-        return f"{self.rating}⭐ - {self.title}"
+        user_str = self.user.username if self.user else self.author_name
+        return f"{self.rating}⭐ - {user_str} - {self.title}"
 
 
 # ============================================================================
@@ -362,8 +389,8 @@ class ProductReview(models.Model):
 
 class UserProfile(models.Model):
     """
-    Hồ sơ người dùng (anonymous, cookie-based).
-    Không cần login, dùng session_id từ browser cookies.
+    Hồ sơ người dùng (Authentication-based).
+    Liên kết với Django User model qua OneToOne relationship.
     
     Dùng để:
     1. Track user metrics (age, weight, goal, etc)
@@ -371,7 +398,7 @@ class UserProfile(models.Model):
     3. Analytics & user behavior analysis
     
     Example:
-        - session_id: "abc123def456"
+        - user: User(username="john_doe")
         - age: 30
         - weight_kg: 75
         - height_cm: 175
@@ -402,11 +429,23 @@ class UserProfile(models.Model):
         ('female', 'Nữ'),
     ]
 
-    # ========== SESSION TRACKING ==========
+    # ========== USER AUTHENTICATION ==========
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        null=True,
+        blank=True,
+        verbose_name="Người dùng"
+    )
+    
+    # ========== SESSION TRACKING (Deprecated, for backward compatibility) ==========
     session_id = models.CharField(
         max_length=255,
         unique=True,
-        verbose_name="Session ID (từ cookie)"
+        null=True,
+        blank=True,
+        verbose_name="Session ID (Legacy, không sử dụng)"
     )
 
     # ========== PHYSICAL METRICS ==========
@@ -491,7 +530,12 @@ class UserProfile(models.Model):
         ]
 
     def __str__(self):
-        return f"User {self.session_id[:8]}... (Goal: {self.goal or 'Not set'})"
+        if self.user:
+            return f"{self.user.username} (Goal: {self.goal or 'Not set'})"
+        elif self.session_id:
+            return f"User {self.session_id[:8]}... (Goal: {self.goal or 'Not set'})"
+        else:
+            return f"Profile #{self.id} (Goal: {self.goal or 'Not set'})"
 
     def get_session_age_days(self):
         """Tính tuổi session (số ngày từ khi tạo đến giờ)"""
@@ -690,3 +734,82 @@ class ProductFlavor(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.flavor}"
 
+
+# ============================================================================
+# PASSWORD RESET TOKEN MODEL
+# ============================================================================
+
+class PasswordResetToken(models.Model):
+    """
+    Mã token để reset mật khẩu.
+    Mỗi token hợp lệ trong 1 giờ.
+    
+    Fields:
+    - user: User requesting password reset
+    - token: Unique token (generated from UID + timestamp)
+    - created_at: When token was created
+    - is_used: Whether token has been used
+    - used_at: When token was used
+    - expires_at: When token expires
+    
+    Example:
+        - user: User(username="john_doe")
+        - token: "abc123def456"
+        - expires_at: 2026-01-04 15:00:00 (1 hour from now)
+        - is_used: False
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='password_reset_tokens',
+        verbose_name="Người dùng"
+    )
+    token = models.CharField(
+        max_length=255,
+        unique=True,
+        verbose_name="Token Reset"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Thời gian tạo"
+    )
+    expires_at = models.DateTimeField(
+        verbose_name="Hết hạn lúc"
+    )
+    is_used = models.BooleanField(
+        default=False,
+        verbose_name="Đã sử dụng"
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Thời gian sử dụng"
+    )
+    
+    class Meta:
+        verbose_name_plural = "Mã Reset Mật Khẩu"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['user', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Reset token for {self.user.username}"
+    
+    @property
+    def is_valid(self):
+        """Check if token is still valid (not expired and not used)"""
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    @property
+    def is_expired(self):
+        """Check if token has expired"""
+        return timezone.now() > self.expires_at
+    
+    def mark_as_used(self):
+        """Mark token as used"""
+        self.is_used = True
+        self.used_at = timezone.now()
+        self.save()

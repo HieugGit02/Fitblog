@@ -41,14 +41,33 @@
 
     <!-- Navigation -->
     <nav class="container main-nav" id="main-nav">
-        <a href="{% url 'blog:home' %}">Trang chủ</a>
-        <a href="{% url 'blog:post_list' %}">Blog</a>
-        <a href="{% url 'blog:categories' %}">Danh Mục</a>
-        <a href="{% url 'products:product_list' %}" class="nav-products">Sản Phẩm</a>
-        <a href="{% url 'products:user_profile_view' %}"> Hồ Sơ</a>
-        {% if user.is_staff %}
-            <a href="{% url 'admin:index' %}">Admin</a>
-        {% endif %}
+        <div class="nav-center">
+            <a href="{% url 'blog:home' %}">Trang chủ</a>
+            <a href="{% url 'blog:post_list' %}">Blog</a>
+            <a href="{% url 'blog:categories' %}">Danh Mục</a>
+            <a href="{% url 'products:product_list' %}" class="nav-products">Sản Phẩm</a>
+            {% if user.is_authenticated %}
+                <a href="{% url 'products:user_profile_view' %}">Hồ Sơ</a>
+            {% endif %}
+            {% if user.is_staff %}
+                <a href="{% url 'admin:index' %}">Admin</a>
+            {% endif %}
+        </div>
+        
+        <!-- Auth Links - Right side -->
+        <div class="nav-right">
+            {% if user.is_authenticated %}
+                {% if user.is_staff or user.is_superuser %}
+                    <span class="user-greeting">👋 Xin chào Admin, {{ user.username }}!</span>
+                {% else %}
+                    <span class="user-greeting">👋 Xin chào, {{ user.username }}!</span>
+                {% endif %}
+                <a href="{% url 'products:logout' %}">Đăng Xuất</a>
+            {% else %}
+                <a href="{% url 'products:login' %}">Đăng Nhập</a>
+                <a href="{% url 'products:register' %}">Đăng Kí</a>
+            {% endif %}
+        </div>
     </nav>
 
     <!-- overlay for off-canvas nav -->

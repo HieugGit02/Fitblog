@@ -264,14 +264,41 @@ nav {
 .main-nav.container {
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
     align-items: center;
+    gap: 1rem;
     padding: 1rem 0;
     background: rgba(255, 255, 255, 1);
     flex-wrap: wrap;
-    position: sticky;
+    /* position: sticky; */
     top: 0;
     z-index: 1000;
+}
+
+/* Center nav items (menu) */
+.nav-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Right nav items (auth) */
+.nav-right {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1.2rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+/* User greeting text */
+.user-greeting {
+    color: #2E7D32;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
 }
 
 .main-nav.container a {
@@ -285,6 +312,7 @@ nav {
     border: none;
     font-size: 0.95rem;
     position: relative;
+    white-space: nowrap;
 }
 
 .main-nav.container a:hover {
@@ -573,6 +601,24 @@ textarea {
     .main-nav.container {
         gap: 0.4rem;
         padding: 0.8rem 0;
+        flex-direction: column;
+    }
+
+    .nav-center {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-right {
+        width: 100%;
+        margin-left: 0;
+        justify-content: center;
+        gap: 0.8rem;
+    }
+
+    .user-greeting {
+        font-size: 0.85rem;
+        white-space: normal;
     }
 
     .main-nav.container a {

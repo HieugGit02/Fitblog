@@ -5,7 +5,100 @@ Admin interface for products app
 
 from django.contrib import admin
 from django.utils.html import format_html
+from django.urls import path
+from django.shortcuts import render
+from django.contrib.auth.models import User
+from django.db.models import Count, Q
+from datetime import timedelta
+from django.utils import timezone
 from .models import ProductCategory, Product, ProductReview, UserProfile, RecommendationLog, ProductFlavor
+from .admin_user import UserAdmin, AdminUserFilter
+
+
+# ========== CUSTOM ADMIN SITE ==========
+class FitblogAdminSite(admin.AdminSite):
+    """Custom admin site với dashboard"""
+    site_header = "🏋️ FITBLOG ADMIN"
+    site_title = "Fitblog Admin Portal"
+    index_title = "Dashboard Quản Trị"
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('dashboard/', self.admin_view(self.dashboard_view), name='dashboard'),
+        ]
+        return custom_urls + urls
+    
+    def index(self, request, extra_context=None):
+        """Override index để hiển thị dashboard"""
+        return self.dashboard_view(request)
+    
+    def dashboard_view(self, request):
+        """Dashboard thống kê user"""
+        # Thống kê cơ bản
+        total_users = User.objects.count()
+        total_profiles = UserProfile.objects.count()
+        admin_users = User.objects.filter(Q(is_staff=True) | Q(is_superuser=True)).count()
+        regular_users = total_users - admin_users
+        
+        # User mới trong 7 ngày
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        new_users_7days = User.objects.filter(date_joined__gte=seven_days_ago).count()
+        
+        # User mới hôm nay
+        today = timezone.now().date()
+        new_users_today = User.objects.filter(date_joined__date=today).count()
+        
+        # Active users (có profile được update)
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        active_users = UserProfile.objects.filter(
+            last_activity__gte=thirty_days_ago
+        ).select_related('user').count()
+        
+        # Users by goal
+        users_by_goal = UserProfile.objects.values('goal').annotate(count=Count('goal')).order_by('-count')
+        
+        # Top goals
+        top_goals = []
+        goal_names = {
+            'muscle-gain': '💪 Tăng cơ',
+            'fat-loss': '⚖️ Giảm cân',
+            'strength': '🔥 Tăng sức mạnh',
+            'endurance': '🏃 Tăng sức bền',
+            'general-health': '❤️ Sức khỏe chung',
+            'athletic': '🏅 Thể thao',
+        }
+        for goal_data in users_by_goal:
+            goal_key = goal_data['goal']
+            top_goals.append({
+                'goal': goal_names.get(goal_key, goal_key),
+                'count': goal_data['count']
+            })
+        
+        # Profile completion
+        profiles_with_age = UserProfile.objects.filter(age__isnull=False).count()
+        profiles_with_weight = UserProfile.objects.filter(weight_kg__isnull=False).count()
+        completion_rate = round((profiles_with_weight / total_profiles * 100) if total_profiles > 0 else 0, 1)
+        
+        context = {
+            'site_header': self.site_header,
+            'site_title': self.site_title,
+            'total_users': total_users,
+            'total_profiles': total_profiles,
+            'admin_users': admin_users,
+            'regular_users': regular_users,
+            'new_users_7days': new_users_7days,
+            'new_users_today': new_users_today,
+            'active_users': active_users,
+            'top_goals': top_goals,
+            'completion_rate': completion_rate,
+            'profiles_with_weight': profiles_with_weight,
+        }
+        return render(request, 'admin/dashboard.html', context)
+
+
+# Tạo instance custom admin site
+fitblog_admin_site = FitblogAdminSite(name='fitblog_admin')
 
 
 class ProductFlavorInline(admin.TabularInline):
@@ -244,23 +337,27 @@ class ProductReviewAdmin(admin.ModelAdmin):
     list_display = [
         'product_name',
         'rating_stars',
-        'author_name',
+        'user_or_author',
         'verified_badge',
         'approved_badge',
         'helpful_count',
         'created_at'
     ]
-    list_filter = ['rating', 'is_approved', 'is_verified_purchase', 'created_at']
-    search_fields = ['product__name', 'author_name', 'title', 'content']
+    list_filter = ['rating', 'is_approved', 'is_verified_purchase', 'created_at', 'user']
+    search_fields = ['product__name', 'author_name', 'user__username', 'title', 'content']
     readonly_fields = ['created_at', 'updated_at']
     list_per_page = 20
     date_hierarchy = 'created_at'
     actions = ['approve_reviews', 'reject_reviews']
 
     fieldsets = (
-        ('📦 Sản phẩm &  Tác giả', {
-            'fields': ('product', 'author_name', 'author_email', 'is_verified_purchase'),
-            'description': 'Chọn sản phẩm và nhập thông tin tác giả review'
+        ('� User & Sản phẩm', {
+            'fields': ('user', 'product', 'is_verified_purchase'),
+            'description': 'Chọn user đã đăng nhập (dùng cho Collaborative Filtering) và sản phẩm'
+        }),
+        ('📝 Thông tin tác giả', {
+            'fields': ('author_name', 'author_email'),
+            'description': 'Tên & email - dùng nếu user không được chọn'
         }),
         ('💬 Nội dung đánh giá', {
             'fields': ('title', 'rating', 'content'),
@@ -275,6 +372,21 @@ class ProductReviewAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def user_or_author(self, obj):
+        """Hiển thị user hoặc tên tác giả"""
+        if obj.user:
+            return format_html(
+                '<strong style="color:#0066cc;">👤 {}</strong><br/><small>(uid: {})</small>',
+                obj.user.username,
+                obj.user.id
+            )
+        else:
+            return format_html(
+                '<em>{}</em>',
+                obj.author_name
+            )
+    user_or_author.short_description = "Người dùng / Tác giả"
 
     def product_name(self, obj):
         """Hiển thị sản phẩm được đánh giá"""
@@ -323,39 +435,93 @@ class ProductReviewAdmin(admin.ModelAdmin):
 class UserProfileAdmin(admin.ModelAdmin):
     """Quản lý hồ sơ người dùng"""
     list_display = [
-        'session_id_short',
+        'username_display',
+        'user_type',
         'age',
         'gender',
         'bmi_display',
         'goal',
         'activity_level',
-        'tdee_display',
-        'session_age_display',
+        'profile_completion',
         'last_activity'
     ]
-    list_filter = ['goal', 'activity_level', 'created_at', 'last_activity']
-    search_fields = ['session_id']
-    readonly_fields = ['session_id', 'created_at', 'last_activity', 'session_info']
+    list_filter = ['goal', 'activity_level', 'gender', 'created_at', 'last_activity']
+    search_fields = ['user__username', 'user__email', 'session_id']
+    readonly_fields = ['session_id', 'created_at', 'last_activity', 'session_info', 'bmi']
     
     fieldsets = (
-        ('Session', {
-            'fields': ('session_id', 'session_info', 'created_at', 'last_activity')
+        ('👤 Thông tin người dùng', {
+            'fields': ('user',)
         }),
-        ('Thông số cơ thể', {
+        ('🔐 Session (Legacy)', {
+            'fields': ('session_id', 'session_info', 'created_at', 'last_activity'),
+            'classes': ('collapse',)
+        }),
+        ('📊 Thông số cơ thể', {
             'fields': ('age', 'gender', 'weight_kg', 'height_cm', 'bmi', 'tdee')
         }),
-        ('Mục tiêu & Hoạt động', {
+        ('🎯 Mục tiêu & Hoạt động', {
             'fields': ('goal', 'activity_level')
         }),
-        ('Sở thích', {
+        ('❤️ Sở thích', {
             'fields': ('preferred_supplement_types', 'dietary_restrictions')
         }),
     )
     
     actions = ['delete_old_sessions']
 
+    def username_display(self, obj):
+        """Hiển thị username hoặc session_id"""
+        if obj.user:
+            return format_html(
+                '<strong>{}</strong><br/><small style="color:#999;">{}</small>',
+                obj.user.username,
+                obj.user.email
+            )
+        if obj.session_id:
+            return format_html('<small style="color:#999;">{}...</small>', obj.session_id[:20])
+        return '—'
+    username_display.short_description = "👤 Username / Email"
+
+    def user_type(self, obj):
+        """Hiển thị loại người dùng: Admin hoặc User"""
+        if obj.user:
+            if obj.user.is_staff or obj.user.is_superuser:
+                return format_html(
+                    '<span style="background-color:#FF6B6B;color:white;padding:4px 8px;border-radius:4px;font-weight:bold;">👨‍💼 Admin</span>'
+                )
+            else:
+                return format_html(
+                    '<span style="background-color:#51CF66;color:white;padding:4px 8px;border-radius:4px;font-weight:bold;">👤 User</span>'
+                )
+        return format_html('<span style="background-color:#999;color:white;padding:4px 8px;border-radius:4px;">—</span>')
+    user_type.short_description = "Loại"
+
+    def profile_completion(self, obj):
+        """Hiển thị % hoàn thành hồ sơ"""
+        fields = [obj.age, obj.weight_kg, obj.height_cm, obj.gender, obj.goal, obj.activity_level]
+        completed = sum(1 for f in fields if f)
+        total = len(fields)
+        percentage = round((completed / total) * 100)
+        
+        if percentage >= 80:
+            color = '#51CF66'  # Green
+        elif percentage >= 50:
+            color = '#FFA500'  # Orange
+        else:
+            color = '#FF6B6B'  # Red
+        
+        return format_html(
+            '<div style="background-color:{};color:white;padding:4px 8px;border-radius:4px;text-align:center;font-weight:bold;min-width:50px;">{}%</div>',
+            color,
+            percentage
+        )
+    profile_completion.short_description = "Hoàn thành"
+
     def session_id_short(self, obj):
-        return '{}...'.format(obj.session_id[:12])
+        if obj.session_id:
+            return '{}...'.format(obj.session_id[:12])
+        return '(No session)'
     session_id_short.short_description = "Session ID"
     
     def session_age_display(self, obj):
@@ -503,3 +669,78 @@ class RecommendationLogAdmin(admin.ModelAdmin):
             return format_html('<span style="color:green;font-weight:bold;">✅ Purchased</span>')
         return "—"
     purchased_status.short_description = "Purchased"
+
+
+# ============================================================================
+# PASSWORD RESET TOKEN ADMIN
+# ============================================================================
+
+class PasswordResetTokenAdmin(admin.ModelAdmin):
+    """Admin interface for password reset tokens"""
+    list_display = (
+        'user',
+        'created_at',
+        'expires_at',
+        'is_used',
+        'used_at',
+        'token_status',
+    )
+    list_filter = ('is_used', 'created_at', 'expires_at')
+    search_fields = ('user__username', 'user__email', 'token')
+    readonly_fields = ('token', 'created_at', 'used_at', 'is_valid', 'is_expired')
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Thông tin Token', {
+            'fields': ('user', 'token')
+        }),
+        ('Thời gian', {
+            'fields': ('created_at', 'expires_at', 'used_at')
+        }),
+        ('Trạng thái', {
+            'fields': ('is_used', 'is_valid', 'is_expired')
+        }),
+    )
+    
+    def token_status(self, obj):
+        """Display token status with color coding"""
+        if obj.is_used:
+            return format_html('<span style="color:gray;">🔒 Đã dùng</span>')
+        elif obj.is_expired:
+            return format_html('<span style="color:red;">⏰ Hết hạn</span>')
+        else:
+            return format_html('<span style="color:green;">✅ Hợp lệ</span>')
+    token_status.short_description = "Trạng thái"
+    
+    def get_readonly_fields(self, request, obj=None):
+        """Prevent editing of most fields"""
+        if obj:  # Editing an existing object
+            return self.readonly_fields + ['user', 'expires_at']
+        return self.readonly_fields
+
+
+# ============================================================================
+# REGISTER ALL MODELS
+# ============================================================================
+
+from .models import PasswordResetToken
+
+# Register with custom admin site
+fitblog_admin = FitblogAdminSite(name='fitblog_admin')
+
+# User management
+fitblog_admin.register(User, UserAdmin)
+
+# Products
+fitblog_admin.register(ProductCategory, ProductCategoryAdmin)
+fitblog_admin.register(Product, ProductAdmin)
+
+# User profiles & reviews
+fitblog_admin.register(UserProfile, UserProfileAdmin)
+fitblog_admin.register(ProductReview, ProductReviewAdmin)
+
+# Recommendations
+fitblog_admin.register(RecommendationLog, RecommendationLogAdmin)
+
+# Password reset tokens
+fitblog_admin.register(PasswordResetToken, PasswordResetTokenAdmin)

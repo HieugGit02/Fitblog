@@ -19,9 +19,9 @@
                 <div class="filter-left">
                     <h3>Danh Mục</h3>
                     <div class="category-filters">
-                        <a href="{% url 'products:product_list' %}" class="category-btn {% if not selected_category %}active{% endif %}">Tất cả</a>
+                        <button onclick="filterByCategory(null)" class="category-btn {% if not selected_category %}active{% endif %}">Tất cả</button>
                         {% for category in categories %}
-                        <a href="?category={{ category.slug }}{% if sort_by %}&sort={{ sort_by }}{% endif %}" class="category-btn {% if selected_category == category.slug %}active{% endif %}">{{ category.name }}</a>
+                        <button onclick="filterByCategory('{{ category.slug }}')" class="category-btn {% if selected_category == category.slug %}active{% endif %}">{{ category.name }}</button>
                         {% endfor %}
                     </div>
                 </div>
@@ -125,6 +125,61 @@ function trackProductClick(event, productId) {
     });
     
     // Don't prevent default - allow normal navigation
+}
+
+// Filter by category with AJAX (no page reload)
+function filterByCategory(categorySlug) {
+    const currentUrl = new URL(window.location.href);
+    
+    if (categorySlug) {
+        currentUrl.searchParams.set('category', categorySlug);
+    } else {
+        currentUrl.searchParams.delete('category');
+    }
+    currentUrl.searchParams.set('page', '1');
+    
+    // Show loading state
+    const productsList = document.querySelector('.products-list');
+    const originalContent = productsList.innerHTML;
+    productsList.innerHTML = '<div class="text-center my-5"><div class="spinner-border" role="status"><span class="visually-hidden">Đang tải...</span></div></div>';
+    
+    // Fetch new products with AJAX
+    fetch(currentUrl.toString(), {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Update products list
+            document.querySelector('.products-list').innerHTML = data.products_html;
+            
+            // Update pagination
+            const paginationNav = document.querySelector('.pagination-nav');
+            if (paginationNav) {
+                paginationNav.innerHTML = data.pagination_html;
+            }
+            
+            // Update URL without reload
+            window.history.pushState({}, '', currentUrl.toString());
+            
+            // Scroll to products smoothly
+            document.querySelector('.products-list').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        } else {
+            throw new Error('Response success is false');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        productsList.innerHTML = originalContent;
+    });
 }
 </script>
 {% endblock %}

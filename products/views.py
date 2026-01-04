@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Avg, Count
 from django.http import JsonResponse
@@ -13,6 +14,9 @@ from .serializers import (
     ProductSerializer, ProductDetailSerializer, ProductCategorySerializer,
     ProductReviewSerializer
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ===== THROTTLE CLASSES =====
@@ -42,6 +46,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         .select_related('category')\
         .prefetch_related('reviews')
     
+    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     throttle_classes = [ProductListThrottle, ProductDetailThrottle]
     
@@ -119,30 +124,35 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Get personalized recommendations based on user profile.
         
-        Session-based logic:
-        - Get or create user profile from session_id
+        FIX: Only support authenticated users (linked to User model)
+        - Get user profile from authenticated user
         - Get products matching user's fitness goal
         - Filter by user's dietary restrictions if any
         - Sort by highest rating and popularity
         
         API: GET /api/products/personalized/?goal=muscle_gain&limit=5
+        
+        IMPORTANT: This endpoint ONLY works for authenticated users!
+        Anonymous users should use /api/products/ endpoint instead.
         """
-        # Get session_id from request
-        session_id = request.session.session_key
+        # Get user profile from authenticated user
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required',
+                'message': 'Please login to get personalized recommendations'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Get the user's profile (created by signal when user was created)
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            return Response({
+                'error': 'Profile not found',
+                'message': 'Please complete your profile setup first'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         goal = request.query_params.get('goal', None)
         limit = int(request.query_params.get('limit', 5))
-        
-        if not session_id:
-            return Response({
-                'error': 'Session not initialized',
-                'message': 'Please visit a page to initialize session first'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get or create user profile
-        user_profile, created = UserProfile.objects.get_or_create(
-            session_id=session_id,
-            defaults={'goal': goal or 'general_fitness'}
-        )
         
         # Build recommendation query
         query = Q(status='active')
@@ -193,6 +203,124 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             'recommendations': serializer.data,
             'reason': f'Personalized recommendations for goal: {goal or user_profile.goal}'
         })
+    
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def collaborative(self, request):
+        """
+        🤝 Get recommendations using Collaborative Filtering algorithm
+        
+        User-based collaborative filtering:
+        - Finds users with similar rating patterns
+        - Recommends products that similar users rated high
+        - Only works with authenticated users (need user_id for algorithms)
+        
+        API: GET /api/products/collaborative/?limit=5&min_rating=3.5
+        
+        Query params:
+        - limit: Number of recommendations (default 5)
+        - min_rating: Minimum predicted rating (default 3.5)
+        
+        Returns:
+        - List of products with predicted_rating (1-5)
+        - Similar users info
+        
+        Status: ✅ Ready for testing
+        Data requirement: Need at least 10 reviews from different users
+        """
+        from .recommendation_service import get_collaborative_engine
+        
+        # Only for authenticated users
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required',
+                'message': 'Collaborative filtering requires authentication'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        limit = int(request.query_params.get('limit', 5))
+        min_rating = float(request.query_params.get('min_rating', 3.5))
+        
+        try:
+            # Get collaborative filtering engine
+            engine = get_collaborative_engine()
+            
+            # Find similar users
+            similar_users = engine.find_similar_users(request.user.id)
+            
+            if not similar_users:
+                return Response({
+                    'count': 0,
+                    'recommendations': [],
+                    'reason': 'Not enough similar users found',
+                    'note': 'Collaborative filtering needs more user reviews to work'
+                })
+            
+            # Get recommendations
+            recommendations = engine.recommend(
+                request.user.id,
+                n_recommendations=limit,
+                min_predicted_rating=min_rating
+            )
+            
+            if not recommendations:
+                return Response({
+                    'count': 0,
+                    'recommendations': [],
+                    'similar_users': len(similar_users),
+                    'reason': 'No products with sufficient predicted rating'
+                })
+            
+            # Fetch product details
+            product_ids = [prod_id for prod_id, score in recommendations]
+            products = Product.objects.filter(id__in=product_ids)
+            product_map = {p.id: p for p in products}
+            
+            # Build response with predicted ratings
+            result = []
+            for product_id, predicted_rating in recommendations:
+                product = product_map.get(product_id)
+                if product:
+                    result.append({
+                        'id': product.id,
+                        'name': product.name,
+                        'slug': product.slug,
+                        'price': float(product.price),
+                        'image': product.image.url if product.image else None,
+                        'predicted_rating': round(predicted_rating, 2),
+                        'actual_rating': float(product.get_average_rating() or 0),
+                        'category': product.category.name,
+                        'reason': f'Similar users rated this {predicted_rating:.1f}/5'
+                    })
+            
+            # Log similar users info for debugging
+            similar_users_info = [
+                {
+                    'user_id': uid,
+                    'similarity_score': round(score, 3)
+                }
+                for uid, score in similar_users[:3]  # Top 3 similar users
+            ]
+            
+            return Response({
+                'count': len(result),
+                'recommendations': result,
+                'algorithm': 'User-based Collaborative Filtering',
+                'similar_users': similar_users_info,
+                'parameters': {
+                    'k_neighbors': engine.k_neighbors,
+                    'min_predicted_rating': min_rating
+                },
+                'status': '✅ Success',
+                'note': 'Recommendations based on users with similar rating patterns'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Collaborative filtering error: {str(e)}")
+            return Response({
+                'error': 'Algorithm error',
+                'message': str(e),
+                'status': '❌ Failed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -202,20 +330,41 @@ class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductReviewViewSet(viewsets.ModelViewSet):
-    """API ViewSet for ProductReview"""
+    """
+    API ViewSet for ProductReview
+    
+    Dùng cho Collaborative Filtering Recommendation:
+    - GET /api/reviews/ → Lấy tất cả approved reviews (kèm user_id, product_id, rating)
+    - POST /api/reviews/ → Tạo review mới (tự động gán user nếu authenticated)
+    - POST /api/reviews/{id}/mark_helpful/ → Đánh dấu review hữu ích
+    """
     queryset = ProductReview.objects.filter(is_approved=True).order_by('-created_at')
     serializer_class = ProductReviewSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['product', 'rating']
-    ordering_fields = ['rating', '-created_at']
+    filterset_fields = ['product', 'rating', 'user']  # Thêm user filter
+    ordering_fields = ['rating', '-created_at', 'user']
     ordering = ['-created_at']
     
     def create(self, request, *args, **kwargs):
-        """Create a new review"""
+        """
+        Create a new review
+        Tự động gán user nếu user đã authenticated
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        # Tự động gán user nếu authenticated
+        if request.user.is_authenticated:
+            self.perform_create(serializer, user=request.user)
+        else:
+            self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def perform_create(self, serializer, user=None):
+        """Override để gán user"""
+        if user:
+            serializer.save(user=user)
+        else:
+            serializer.save()
     
     @action(detail=True, methods=['post'])
     def mark_helpful(self, request, pk=None):
@@ -244,43 +393,42 @@ def user_profile_setup(request):
     """
     Setup user profile - người dùng điền thông tin cá nhân (tuổi, cân, cao, mục tiêu)
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     GET: Hiển thị form
     POST: Lưu thông tin và redirect về trang chủ
     
     Features:
     - Auto-calculate BMI & TDEE
-    - Session-based (không cần login)
+    - Require login (cannot use session-based)
     - Validation input
-    - Tạo UserProfile chỉ khi submit form (không tự động tạo trống)
+    - Update UserProfile created by signal
     
     URL: /products/setup/
     Template: products/user_profile_setup.html
     """
-    # Lấy session_id từ request
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập để setup hồ sơ')
+        return redirect('products:product_list')
     
-    if not session_id:
-        # Nếu chưa có session, tạo mới
-        request.session.create()
-        session_id = request.session.session_key
-    
-    # Get existing UserProfile hoặc None
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # Get the user's profile (created by signal)
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Nếu profile chưa tồn tại, tạo mới (không save ngay)
-        if not user_profile:
-            user_profile = UserProfile(session_id=session_id)
-        
         form = UserProfileForm(request.POST, instance=user_profile)
         if form.is_valid():
             form.save()
             messages.success(request, '✅ Thông tin của bạn đã được lưu!')
-            return redirect('products:product_list')
+            return redirect('products:user_profile_view')
         else:
             messages.error(request, '❌ Vui lòng kiểm tra lại thông tin!')
     else:
-        form = UserProfileForm(instance=user_profile) if user_profile else UserProfileForm()
+        form = UserProfileForm(instance=user_profile)
     
     context = {
         'form': form,
@@ -295,6 +443,8 @@ def user_profile_quick_setup(request):
     """
     Quick setup - form rút gọn chỉ hỏi thông tin thiết yếu
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     Dùng khi:
     - User muốn setup nhanh
     - User lần đầu vào website
@@ -303,27 +453,26 @@ def user_profile_quick_setup(request):
     URL: /products/quick-setup/
     Template: products/user_profile_quick_setup.html
     """
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
-    if not session_id:
-        request.session.create()
-        session_id = request.session.session_key
-    
-    # Get existing UserProfile hoặc None
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # Get the user's profile (created by signal)
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Tạo profile nếu chưa tồn tại
-        if not user_profile:
-            user_profile = UserProfile(session_id=session_id)
-        
         form = QuickProfileForm(request.POST, instance=user_profile)
         if form.is_valid():
             form.save()
             messages.success(request, '✅ Setup xong! Hãy xem gợi ý sản phẩm cho bạn.')
             return redirect('products:product_list')
     else:
-        form = QuickProfileForm(instance=user_profile) if user_profile else QuickProfileForm()
+        form = QuickProfileForm(instance=user_profile)
     
     context = {
         'form': form,
@@ -338,45 +487,60 @@ def user_profile_view(request):
     """
     Xem & chỉnh sửa profile của user
     
+    SUPPORTS BOTH:
+    1. Authenticated users (linked to User model)
+    2. Session-based users (no login required)
+    
     GET: Hiển thị thông tin profile (với metrics tính toán)
     POST: Update profile
     
     URL: /products/profile/
     Template: products/user_profile_view.html
-    
-    Note: Chỉ show profile nếu user đã setup (có data)
     """
-    session_id = request.session.session_key
+    # Try to get UserProfile
+    user_profile = None
     
-    if not session_id:
-        request.session.create()
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+            return redirect('products:product_list')
+    
+    # Priority 2: Session-based user
+    if not user_profile:
         session_id = request.session.session_key
+        if session_id:
+            try:
+                user_profile = UserProfile.objects.get(session_id=session_id)
+            except UserProfile.DoesNotExist:
+                messages.warning(request, 'Vui lòng điền thông tin profile trước')
+                return redirect('products:user_profile_setup')
     
-    # Get UserProfile nếu tồn tại, không tạo mới
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # If still no profile, redirect to setup
+    if not user_profile:
+        messages.warning(request, 'Vui lòng điền thông tin profile')
+        return redirect('products:user_profile_setup')
     
-    # Lấy recommendation logs (nếu profile tồn tại)
-    personalized_products = []
-    all_logs = []
+    # Lấy recommendation logs (personalized)
+    personalized_products = RecommendationLog.objects.filter(
+        user_profile=user_profile,
+        recommendation_type__in=['personalized', 'goal-based']
+    ).order_by('-created_at')[:6]
     
-    if user_profile:
-        # Lấy personalized (phù hợp) products để hiển thị dạng card
-        personalized_products = RecommendationLog.objects.filter(
-            user_profile=user_profile,
-            recommendation_type='personalized'
-        ).order_by('-created_at')[:6]  # 6 sản phẩm (2 columns x 3 rows)
-        
-        # Lấy tất cả logs để hiển thị dạng table history
-        all_logs = RecommendationLog.objects.filter(
-            user_profile=user_profile
-        ).order_by('-created_at')[:20]  # 20 logs gần nhất
+    # Lấy tất cả logs
+    all_logs = RecommendationLog.objects.filter(
+        user_profile=user_profile
+    ).order_by('-created_at')[:20]
     
     context = {
         'user_profile': user_profile,
         'personalized_products': personalized_products,
         'all_logs': all_logs,
-        'bmi_status': get_bmi_status(user_profile.bmi) if user_profile and user_profile.bmi else None,
-        'tdee_info': get_tdee_info(user_profile.tdee) if user_profile and user_profile.tdee else None,
+        'bmi_status': get_bmi_status(user_profile.bmi) if user_profile.bmi else None,
+        'tdee_info': get_tdee_info(user_profile.tdee) if user_profile.tdee else None,
+        'has_profile_filled': bool(user_profile.goal and user_profile.goal != 'general-health'),
     }
     
     return render(request, 'products/user_profile_view.html', context)
@@ -386,36 +550,44 @@ def user_profile_delete(request):
     """
     Xóa hồ sơ người dùng
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     GET: Hiển thị confirmation dialog
-    POST: Xóa profile + recommendation logs + session
+    POST: Xóa profile + recommendation logs
     
     URL: /products/profile/delete/
     Template: products/user_profile_delete.html
     """
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
-    if not session_id:
-        return redirect('products:user_profile_view')
-    
-    # Kiểm tra user profile tồn tại
+    # Get the user's profile
     try:
-        user_profile = UserProfile.objects.get(session_id=session_id)
+        user_profile = UserProfile.objects.get(user=request.user)
     except UserProfile.DoesNotExist:
-        messages.error(request, '❌ Không tìm thấy hồ sơ để xóa')
-        return redirect('products:user_profile_view')
+        messages.error(request, 'Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
         # Xóa toàn bộ recommendation logs
         RecommendationLog.objects.filter(user_profile=user_profile).delete()
         
-        # Xóa profile
-        profile_name = str(user_profile)
-        user_profile.delete()
+        # Reset profile data (keep profile linked to user)
+        user_profile.age = None
+        user_profile.weight_kg = None
+        user_profile.height_cm = None
+        user_profile.gender = None
+        user_profile.bmi = None
+        user_profile.tdee = None
+        user_profile.goal = 'general-health'
+        user_profile.activity_level = None
+        user_profile.preferred_supplement_types = ''
+        user_profile.dietary_restrictions = ''
+        user_profile.save()
         
-        # Xóa session
-        request.session.flush()
-        
-        messages.success(request, '✅ Hồ sơ đã được xóa. Session được reset.')
+        messages.success(request, '✅ Hồ sơ đã được reset. Bạn có thể setup lại!')
         return redirect('products:product_list')
     
     # GET: Show confirmation
@@ -429,33 +601,36 @@ def user_profile_delete(request):
 
 def user_profile_reset(request):
     """
-    Reset profile data nhưng giữ session_id
+    Reset profile data nhưng giữ user link
     (Xóa: age, weight, height, bmi, tdee, goal, activity_level)
+    
+    ONLY FOR AUTHENTICATED USERS!
     
     GET: Confirmation
     POST: Reset data
     
     URL: /products/profile/reset/
     """
-    session_id = request.session.session_key
-    
-    if not session_id:
-        return redirect('products:user_profile_view')
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
     try:
-        user_profile = UserProfile.objects.get(session_id=session_id)
+        user_profile = UserProfile.objects.get(user=request.user)
     except UserProfile.DoesNotExist:
-        messages.error(request, '❌ Không tìm thấy hồ sơ')
-        return redirect('products:user_profile_view')
+        messages.error(request, 'Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Reset data nhưng giữ session_id
+        # Reset data nhưng giữ user link
         user_profile.age = None
         user_profile.weight_kg = None
         user_profile.height_cm = None
+        user_profile.gender = None
         user_profile.bmi = None
         user_profile.tdee = None
-        user_profile.goal = None
+        user_profile.goal = 'general-health'
         user_profile.activity_level = None
         user_profile.preferred_supplement_types = ''
         user_profile.dietary_restrictions = ''
@@ -470,6 +645,76 @@ def user_profile_reset(request):
     }
     
     return render(request, 'products/user_profile_reset.html', context)
+
+
+def user_profile_change_password(request):
+    """
+    Đổi mật khẩu cho authenticated user
+    
+    GET: Show change password form
+    POST: Update password
+    
+    URL: /products/profile/change-password/
+    """
+    from django.contrib.auth import authenticate, update_session_auth_hash
+    from django import forms
+    from django.contrib import messages
+    
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
+    
+    if request.method == 'POST':
+        old_password = request.POST.get('old_password', '').strip()
+        new_password = request.POST.get('new_password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+        
+        # Validate inputs
+        if not old_password:
+            messages.error(request, 'Vui lòng nhập mật khẩu hiện tại')
+            return redirect('products:user_profile_change_password')
+        
+        if not new_password:
+            messages.error(request, 'Vui lòng nhập mật khẩu mới')
+            return redirect('products:user_profile_change_password')
+        
+        if new_password != confirm_password:
+            messages.error(request, 'Mật khẩu xác nhận không khớp')
+            return redirect('products:user_profile_change_password')
+        
+        if len(new_password) < 8:
+            messages.error(request, 'Mật khẩu phải có ít nhất 8 ký tự')
+            return redirect('products:user_profile_change_password')
+        
+        # Verify old password
+        if not request.user.check_password(old_password):
+            messages.error(request, 'Mật khẩu hiện tại không đúng')
+            return redirect('products:user_profile_change_password')
+        
+        if old_password == new_password:
+            messages.warning(request, 'Mật khẩu mới phải khác với mật khẩu cũ')
+            return redirect('products:user_profile_change_password')
+        
+        # Update password
+        try:
+            request.user.set_password(new_password)
+            request.user.save()
+            
+            # Keep user logged in after password change
+            update_session_auth_hash(request, request.user)
+            
+            messages.success(request, '✅ Mật khẩu đã được thay đổi thành công!')
+            return redirect('products:user_profile_view')
+        except Exception as e:
+            messages.error(request, f'❌ Có lỗi xảy ra: {str(e)}')
+            logger.error(f'Error changing password for user {request.user.id}: {str(e)}')
+            return redirect('products:user_profile_change_password')
+    
+    # GET: Show form
+    return render(request, 'products/user_profile_change_password.html', {
+        'user': request.user
+    })
 
 
 def get_bmi_status(bmi):
@@ -550,29 +795,43 @@ def product_list(request):
     ).distinct()
     
     # Log recommendation views for users with profile
-    session_id = request.session.session_key
-    if session_id:
-        user_profile = UserProfile.objects.filter(session_id=session_id).first()
-        if user_profile and user_profile.goal:  # Only log if user has setup profile with goal
-            # Filter products that match user's goal (true recommendations)
-            recommended_products = Product.objects.filter(
-                status='active',
-                suitable_for_goals__icontains=user_profile.goal
-            )
-            
-            # Log ONLY matching products as "personalized" recommendations
-            for product in page_obj.object_list:
-                if product in recommended_products:
-                    # Match user's goal → "personalized" recommendation
-                    RecommendationLog.objects.get_or_create(
-                        user_profile=user_profile,
-                        recommended_product=product,
-                        defaults={
-                            'recommendation_type': 'personalized',
-                            'score': 0.95,  # High score for goal match
-                        }
-                    )
-                # Don't log non-matching products
+    user_profile = None
+    
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # Priority 2: Session-based user
+    if not user_profile:
+        session_id = request.session.session_key
+        if session_id:
+            user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    
+    # Log only if user has setup profile with goal
+    if user_profile and user_profile.goal and user_profile.goal != 'general-health':
+        # Filter products that match user's goal (true recommendations)
+        recommended_products = set(Product.objects.filter(
+            status='active',
+            suitable_for_goals__icontains=user_profile.goal
+        ).values_list('id', flat=True))
+        
+        # Log matching products as "personalized" recommendations
+        for product in page_obj.object_list:
+            if product.id in recommended_products:
+                # Match user's goal → "personalized" recommendation
+                # Don't mark as clicked yet (user only saw on list, not detail page)
+                RecommendationLog.objects.get_or_create(
+                    user_profile=user_profile,
+                    recommended_product=product,
+                    defaults={
+                        'recommendation_type': 'personalized',
+                        'score': 0.95,  # High score for goal match
+                        'clicked': False,  # Not clicked yet, just shown on list
+                    }
+                )
     
     context = {
         'page_obj': page_obj,
@@ -651,43 +910,67 @@ def product_detail(request, slug):
     review_count = product.get_review_count()
     
     # Log product view + recommendations for user with profile
-    session_id = request.session.session_key
-    if session_id:
-        user_profile = UserProfile.objects.filter(session_id=session_id).first()
-        if user_profile and user_profile.goal:  # Only log if user has setup profile with goal
-            # Check if main product matches user's goal
-            if user_profile.goal in product.suitable_for_goals:
-                # Log the main product as "personalized" (matches goal)
-                RecommendationLog.objects.get_or_create(
+    user_profile = None
+    
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # Priority 2: Session-based user
+    if not user_profile:
+        session_id = request.session.session_key
+        if session_id:
+            user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    
+    # Only log if user has setup profile with goal
+    if user_profile and user_profile.goal and user_profile.goal != 'general-health':
+        # Check if main product matches user's goal
+        if user_profile.goal in product.suitable_for_goals:
+            # Log the main product as "personalized" (matches goal)
+            log, created = RecommendationLog.objects.get_or_create(
+                user_profile=user_profile,
+                recommended_product=product,
+                defaults={
+                    'recommendation_type': 'personalized',
+                    'score': 0.95,
+                    'clicked': True,  # Mark as clicked when user views product detail
+                }
+            )
+            # If log already existed, mark as clicked
+            if not created and not log.clicked:
+                log.clicked = True
+                log.save()
+        else:
+            # Log as "content-based" (same category but different goal)
+            log, created = RecommendationLog.objects.get_or_create(
+                user_profile=user_profile,
+                recommended_product=product,
+                defaults={
+                    'recommendation_type': 'content-based',
+                    'score': 0.5,
+                    'clicked': True,  # Mark as clicked when user views product detail
+                }
+            )
+            # If log already existed, mark as clicked
+            if not created and not log.clicked:
+                log.clicked = True
+                log.save()
+        
+        # Log recommended products (only if match goal)
+        for rec_product in recommendations:
+            if user_profile.goal in rec_product.suitable_for_goals:
+                log, created = RecommendationLog.objects.get_or_create(
                     user_profile=user_profile,
-                    recommended_product=product,
+                    recommended_product=rec_product,
                     defaults={
                         'recommendation_type': 'personalized',
                         'score': 0.95,
                     }
                 )
-            else:
-                # Log as "content-based" (same category but different goal)
-                RecommendationLog.objects.get_or_create(
-                    user_profile=user_profile,
-                    recommended_product=product,
-                    defaults={
-                        'recommendation_type': 'content-based',
-                        'score': 0.5,
-                    }
-                )
-            
-            # Log recommended products (only if match goal)
-            for rec_product in recommendations:
-                if user_profile.goal in rec_product.suitable_for_goals:
-                    RecommendationLog.objects.get_or_create(
-                        user_profile=user_profile,
-                        recommended_product=rec_product,
-                        defaults={
-                            'recommendation_type': 'personalized',
-                            'score': 0.95,
-                        }
-                    )
+                # Don't mark rec_product as clicked (user hasn't viewed them yet)
     
     context = {
         'product': product,
