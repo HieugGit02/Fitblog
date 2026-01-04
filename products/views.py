@@ -647,6 +647,76 @@ def user_profile_reset(request):
     return render(request, 'products/user_profile_reset.html', context)
 
 
+def user_profile_change_password(request):
+    """
+    Đổi mật khẩu cho authenticated user
+    
+    GET: Show change password form
+    POST: Update password
+    
+    URL: /products/profile/change-password/
+    """
+    from django.contrib.auth import authenticate, update_session_auth_hash
+    from django import forms
+    from django.contrib import messages
+    
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
+    
+    if request.method == 'POST':
+        old_password = request.POST.get('old_password', '').strip()
+        new_password = request.POST.get('new_password', '').strip()
+        confirm_password = request.POST.get('confirm_password', '').strip()
+        
+        # Validate inputs
+        if not old_password:
+            messages.error(request, 'Vui lòng nhập mật khẩu hiện tại')
+            return redirect('products:user_profile_change_password')
+        
+        if not new_password:
+            messages.error(request, 'Vui lòng nhập mật khẩu mới')
+            return redirect('products:user_profile_change_password')
+        
+        if new_password != confirm_password:
+            messages.error(request, 'Mật khẩu xác nhận không khớp')
+            return redirect('products:user_profile_change_password')
+        
+        if len(new_password) < 8:
+            messages.error(request, 'Mật khẩu phải có ít nhất 8 ký tự')
+            return redirect('products:user_profile_change_password')
+        
+        # Verify old password
+        if not request.user.check_password(old_password):
+            messages.error(request, 'Mật khẩu hiện tại không đúng')
+            return redirect('products:user_profile_change_password')
+        
+        if old_password == new_password:
+            messages.warning(request, 'Mật khẩu mới phải khác với mật khẩu cũ')
+            return redirect('products:user_profile_change_password')
+        
+        # Update password
+        try:
+            request.user.set_password(new_password)
+            request.user.save()
+            
+            # Keep user logged in after password change
+            update_session_auth_hash(request, request.user)
+            
+            messages.success(request, '✅ Mật khẩu đã được thay đổi thành công!')
+            return redirect('products:user_profile_view')
+        except Exception as e:
+            messages.error(request, f'❌ Có lỗi xảy ra: {str(e)}')
+            logger.error(f'Error changing password for user {request.user.id}: {str(e)}')
+            return redirect('products:user_profile_change_password')
+    
+    # GET: Show form
+    return render(request, 'products/user_profile_change_password.html', {
+        'user': request.user
+    })
+
+
 def get_bmi_status(bmi):
     """Helper function: lấy trạng thái BMI"""
     if bmi < 18.5:
