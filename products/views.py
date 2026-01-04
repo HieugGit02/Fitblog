@@ -13,6 +13,9 @@ from .serializers import (
     ProductSerializer, ProductDetailSerializer, ProductCategorySerializer,
     ProductReviewSerializer
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ===== THROTTLE CLASSES =====
@@ -198,6 +201,124 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             'recommendations': serializer.data,
             'reason': f'Personalized recommendations for goal: {goal or user_profile.goal}'
         })
+    
+    @action(detail=False, methods=['get'])
+    def collaborative(self, request):
+        """
+        🤝 Get recommendations using Collaborative Filtering algorithm
+        
+        User-based collaborative filtering:
+        - Finds users with similar rating patterns
+        - Recommends products that similar users rated high
+        - Only works with authenticated users (need user_id for algorithms)
+        
+        API: GET /api/products/collaborative/?limit=5&min_rating=3.5
+        
+        Query params:
+        - limit: Number of recommendations (default 5)
+        - min_rating: Minimum predicted rating (default 3.5)
+        
+        Returns:
+        - List of products with predicted_rating (1-5)
+        - Similar users info
+        
+        Status: ✅ Ready for testing
+        Data requirement: Need at least 10 reviews from different users
+        """
+        from .recommendation_service import get_collaborative_engine
+        
+        # Only for authenticated users
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required',
+                'message': 'Collaborative filtering requires authentication'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        limit = int(request.query_params.get('limit', 5))
+        min_rating = float(request.query_params.get('min_rating', 3.5))
+        
+        try:
+            # Get collaborative filtering engine
+            engine = get_collaborative_engine()
+            
+            # Find similar users
+            similar_users = engine.find_similar_users(request.user.id)
+            
+            if not similar_users:
+                return Response({
+                    'count': 0,
+                    'recommendations': [],
+                    'reason': 'Not enough similar users found',
+                    'note': 'Collaborative filtering needs more user reviews to work'
+                })
+            
+            # Get recommendations
+            recommendations = engine.recommend(
+                request.user.id,
+                n_recommendations=limit,
+                min_predicted_rating=min_rating
+            )
+            
+            if not recommendations:
+                return Response({
+                    'count': 0,
+                    'recommendations': [],
+                    'similar_users': len(similar_users),
+                    'reason': 'No products with sufficient predicted rating'
+                })
+            
+            # Fetch product details
+            product_ids = [prod_id for prod_id, score in recommendations]
+            products = Product.objects.filter(id__in=product_ids)
+            product_map = {p.id: p for p in products}
+            
+            # Build response with predicted ratings
+            result = []
+            for product_id, predicted_rating in recommendations:
+                product = product_map.get(product_id)
+                if product:
+                    result.append({
+                        'id': product.id,
+                        'name': product.name,
+                        'slug': product.slug,
+                        'price': float(product.price),
+                        'image': product.image.url if product.image else None,
+                        'predicted_rating': round(predicted_rating, 2),
+                        'actual_rating': float(product.get_average_rating() or 0),
+                        'category': product.category.name,
+                        'reason': f'Similar users rated this {predicted_rating:.1f}/5'
+                    })
+            
+            # Log similar users info for debugging
+            similar_users_info = [
+                {
+                    'user_id': uid,
+                    'similarity_score': round(score, 3)
+                }
+                for uid, score in similar_users[:3]  # Top 3 similar users
+            ]
+            
+            return Response({
+                'count': len(result),
+                'recommendations': result,
+                'algorithm': 'User-based Collaborative Filtering',
+                'similar_users': similar_users_info,
+                'parameters': {
+                    'k_neighbors': engine.k_neighbors,
+                    'min_predicted_rating': min_rating
+                },
+                'status': '✅ Success',
+                'note': 'Recommendations based on users with similar rating patterns'
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ Collaborative filtering error: {str(e)}")
+            return Response({
+                'error': 'Algorithm error',
+                'message': str(e),
+                'status': '❌ Failed'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
