@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Avg, Count
 from django.http import JsonResponse
@@ -45,6 +46,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         .select_related('category')\
         .prefetch_related('reviews')
     
+    permission_classes = [IsAuthenticatedOrReadOnly]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     throttle_classes = [ProductListThrottle, ProductDetailThrottle]
     
@@ -202,7 +204,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             'reason': f'Personalized recommendations for goal: {goal or user_profile.goal}'
         })
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def collaborative(self, request):
         """
         🤝 Get recommendations using Collaborative Filtering algorithm
