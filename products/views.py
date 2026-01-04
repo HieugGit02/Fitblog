@@ -119,30 +119,35 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         """
         Get personalized recommendations based on user profile.
         
-        Session-based logic:
-        - Get or create user profile from session_id
+        FIX: Only support authenticated users (linked to User model)
+        - Get user profile from authenticated user
         - Get products matching user's fitness goal
         - Filter by user's dietary restrictions if any
         - Sort by highest rating and popularity
         
         API: GET /api/products/personalized/?goal=muscle_gain&limit=5
+        
+        IMPORTANT: This endpoint ONLY works for authenticated users!
+        Anonymous users should use /api/products/ endpoint instead.
         """
-        # Get session_id from request
-        session_id = request.session.session_key
+        # Get user profile from authenticated user
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required',
+                'message': 'Please login to get personalized recommendations'
+            }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        # Get the user's profile (created by signal when user was created)
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            return Response({
+                'error': 'Profile not found',
+                'message': 'Please complete your profile setup first'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
         goal = request.query_params.get('goal', None)
         limit = int(request.query_params.get('limit', 5))
-        
-        if not session_id:
-            return Response({
-                'error': 'Session not initialized',
-                'message': 'Please visit a page to initialize session first'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Get or create user profile
-        user_profile, created = UserProfile.objects.get_or_create(
-            session_id=session_id,
-            defaults={'goal': goal or 'general_fitness'}
-        )
         
         # Build recommendation query
         query = Q(status='active')
@@ -244,34 +249,33 @@ def user_profile_setup(request):
     """
     Setup user profile - người dùng điền thông tin cá nhân (tuổi, cân, cao, mục tiêu)
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     GET: Hiển thị form
     POST: Lưu thông tin và redirect về trang chủ
     
     Features:
     - Auto-calculate BMI & TDEE
-    - Session-based (không cần login)
+    - Require login (cannot use session-based)
     - Validation input
-    - Tạo UserProfile chỉ khi submit form (không tự động tạo trống)
+    - Update UserProfile created by signal
     
     URL: /products/setup/
     Template: products/user_profile_setup.html
     """
-    # Lấy session_id từ request
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập để setup hồ sơ')
+        return redirect('products:product_list')
     
-    if not session_id:
-        # Nếu chưa có session, tạo mới
-        request.session.create()
-        session_id = request.session.session_key
-    
-    # Get existing UserProfile hoặc None
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # Get the user's profile (created by signal)
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Nếu profile chưa tồn tại, tạo mới (không save ngay)
-        if not user_profile:
-            user_profile = UserProfile(session_id=session_id)
-        
         form = UserProfileForm(request.POST, instance=user_profile)
         if form.is_valid():
             form.save()
@@ -280,7 +284,7 @@ def user_profile_setup(request):
         else:
             messages.error(request, '❌ Vui lòng kiểm tra lại thông tin!')
     else:
-        form = UserProfileForm(instance=user_profile) if user_profile else UserProfileForm()
+        form = UserProfileForm(instance=user_profile)
     
     context = {
         'form': form,
@@ -295,6 +299,8 @@ def user_profile_quick_setup(request):
     """
     Quick setup - form rút gọn chỉ hỏi thông tin thiết yếu
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     Dùng khi:
     - User muốn setup nhanh
     - User lần đầu vào website
@@ -303,27 +309,26 @@ def user_profile_quick_setup(request):
     URL: /products/quick-setup/
     Template: products/user_profile_quick_setup.html
     """
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
-    if not session_id:
-        request.session.create()
-        session_id = request.session.session_key
-    
-    # Get existing UserProfile hoặc None
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # Get the user's profile (created by signal)
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Tạo profile nếu chưa tồn tại
-        if not user_profile:
-            user_profile = UserProfile(session_id=session_id)
-        
         form = QuickProfileForm(request.POST, instance=user_profile)
         if form.is_valid():
             form.save()
             messages.success(request, '✅ Setup xong! Hãy xem gợi ý sản phẩm cho bạn.')
             return redirect('products:product_list')
     else:
-        form = QuickProfileForm(instance=user_profile) if user_profile else QuickProfileForm()
+        form = QuickProfileForm(instance=user_profile)
     
     context = {
         'form': form,
@@ -338,45 +343,43 @@ def user_profile_view(request):
     """
     Xem & chỉnh sửa profile của user
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     GET: Hiển thị thông tin profile (với metrics tính toán)
     POST: Update profile
     
     URL: /products/profile/
     Template: products/user_profile_view.html
-    
-    Note: Chỉ show profile nếu user đã setup (có data)
     """
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
-    if not session_id:
-        request.session.create()
-        session_id = request.session.session_key
+    # Get UserProfile (created by signal)
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
-    # Get UserProfile nếu tồn tại, không tạo mới
-    user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    # Lấy recommendation logs
+    personalized_products = RecommendationLog.objects.filter(
+        user_profile=user_profile,
+        recommendation_type='personalized'
+    ).order_by('-created_at')[:6]
     
-    # Lấy recommendation logs (nếu profile tồn tại)
-    personalized_products = []
-    all_logs = []
-    
-    if user_profile:
-        # Lấy personalized (phù hợp) products để hiển thị dạng card
-        personalized_products = RecommendationLog.objects.filter(
-            user_profile=user_profile,
-            recommendation_type='personalized'
-        ).order_by('-created_at')[:6]  # 6 sản phẩm (2 columns x 3 rows)
-        
-        # Lấy tất cả logs để hiển thị dạng table history
-        all_logs = RecommendationLog.objects.filter(
-            user_profile=user_profile
-        ).order_by('-created_at')[:20]  # 20 logs gần nhất
+    # Lấy tất cả logs
+    all_logs = RecommendationLog.objects.filter(
+        user_profile=user_profile
+    ).order_by('-created_at')[:20]
     
     context = {
         'user_profile': user_profile,
         'personalized_products': personalized_products,
         'all_logs': all_logs,
-        'bmi_status': get_bmi_status(user_profile.bmi) if user_profile and user_profile.bmi else None,
-        'tdee_info': get_tdee_info(user_profile.tdee) if user_profile and user_profile.tdee else None,
+        'bmi_status': get_bmi_status(user_profile.bmi) if user_profile.bmi else None,
+        'tdee_info': get_tdee_info(user_profile.tdee) if user_profile.tdee else None,
     }
     
     return render(request, 'products/user_profile_view.html', context)
@@ -386,36 +389,44 @@ def user_profile_delete(request):
     """
     Xóa hồ sơ người dùng
     
+    ONLY FOR AUTHENTICATED USERS!
+    
     GET: Hiển thị confirmation dialog
-    POST: Xóa profile + recommendation logs + session
+    POST: Xóa profile + recommendation logs
     
     URL: /products/profile/delete/
     Template: products/user_profile_delete.html
     """
-    session_id = request.session.session_key
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
-    if not session_id:
-        return redirect('products:user_profile_view')
-    
-    # Kiểm tra user profile tồn tại
+    # Get the user's profile
     try:
-        user_profile = UserProfile.objects.get(session_id=session_id)
+        user_profile = UserProfile.objects.get(user=request.user)
     except UserProfile.DoesNotExist:
-        messages.error(request, '❌ Không tìm thấy hồ sơ để xóa')
-        return redirect('products:user_profile_view')
+        messages.error(request, 'Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
         # Xóa toàn bộ recommendation logs
         RecommendationLog.objects.filter(user_profile=user_profile).delete()
         
-        # Xóa profile
-        profile_name = str(user_profile)
-        user_profile.delete()
+        # Reset profile data (keep profile linked to user)
+        user_profile.age = None
+        user_profile.weight_kg = None
+        user_profile.height_cm = None
+        user_profile.gender = None
+        user_profile.bmi = None
+        user_profile.tdee = None
+        user_profile.goal = 'general-health'
+        user_profile.activity_level = None
+        user_profile.preferred_supplement_types = ''
+        user_profile.dietary_restrictions = ''
+        user_profile.save()
         
-        # Xóa session
-        request.session.flush()
-        
-        messages.success(request, '✅ Hồ sơ đã được xóa. Session được reset.')
+        messages.success(request, '✅ Hồ sơ đã được reset. Bạn có thể setup lại!')
         return redirect('products:product_list')
     
     # GET: Show confirmation
@@ -429,33 +440,36 @@ def user_profile_delete(request):
 
 def user_profile_reset(request):
     """
-    Reset profile data nhưng giữ session_id
+    Reset profile data nhưng giữ user link
     (Xóa: age, weight, height, bmi, tdee, goal, activity_level)
+    
+    ONLY FOR AUTHENTICATED USERS!
     
     GET: Confirmation
     POST: Reset data
     
     URL: /products/profile/reset/
     """
-    session_id = request.session.session_key
-    
-    if not session_id:
-        return redirect('products:user_profile_view')
+    # Require login
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
     
     try:
-        user_profile = UserProfile.objects.get(session_id=session_id)
+        user_profile = UserProfile.objects.get(user=request.user)
     except UserProfile.DoesNotExist:
-        messages.error(request, '❌ Không tìm thấy hồ sơ')
-        return redirect('products:user_profile_view')
+        messages.error(request, 'Không tìm thấy hồ sơ')
+        return redirect('products:product_list')
     
     if request.method == 'POST':
-        # Reset data nhưng giữ session_id
+        # Reset data nhưng giữ user link
         user_profile.age = None
         user_profile.weight_kg = None
         user_profile.height_cm = None
+        user_profile.gender = None
         user_profile.bmi = None
         user_profile.tdee = None
-        user_profile.goal = None
+        user_profile.goal = 'general-health'
         user_profile.activity_level = None
         user_profile.preferred_supplement_types = ''
         user_profile.dietary_restrictions = ''

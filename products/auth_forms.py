@@ -142,3 +142,74 @@ class UserLoginForm(forms.Form):
             'class': 'form-check-input',
         })
     )
+
+
+# ============================================================================
+# PASSWORD RESET FORMS
+# ============================================================================
+
+class PasswordResetRequestForm(forms.Form):
+    """
+    Form for requesting a password reset link via email.
+    
+    User enters their email and receives a reset link.
+    """
+    email = forms.EmailField(
+        label="Email",
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nhập email của bạn',
+        })
+    )
+    
+    def clean_email(self):
+        """Validate that email exists in database"""
+        email = self.cleaned_data.get('email')
+        if email and not User.objects.filter(email=email).exists():
+            raise ValidationError("❌ Email này không được đăng ký trong hệ thống.")
+        return email
+
+
+class PasswordResetForm(forms.Form):
+    """
+    Form for resetting password with new password input.
+    
+    Fields:
+    - password1: New password
+    - password2: Confirm new password
+    """
+    password1 = forms.CharField(
+        label="Mật khẩu mới",
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nhập mật khẩu mới (ít nhất 8 ký tự)',
+            'autocomplete': 'new-password',
+        })
+    )
+    password2 = forms.CharField(
+        label="Xác nhận mật khẩu",
+        required=True,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nhập lại mật khẩu mới',
+            'autocomplete': 'new-password',
+        })
+    )
+    
+    def clean_password1(self):
+        """Validate password strength"""
+        password = self.cleaned_data.get('password1')
+        if password and len(password) < 8:
+            raise ValidationError("❌ Mật khẩu phải có ít nhất 8 ký tự.")
+        return password
+    
+    def clean_password2(self):
+        """Validate password confirmation"""
+        password1 = self.cleaned_data.get('password1')
+        password2 = self.cleaned_data.get('password2')
+        if password1 and password2:
+            if password1 != password2:
+                raise ValidationError("❌ Hai mật khẩu không khớp!")
+        return password2

@@ -703,3 +703,82 @@ class ProductFlavor(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.flavor}"
 
+
+# ============================================================================
+# PASSWORD RESET TOKEN MODEL
+# ============================================================================
+
+class PasswordResetToken(models.Model):
+    """
+    Mã token để reset mật khẩu.
+    Mỗi token hợp lệ trong 1 giờ.
+    
+    Fields:
+    - user: User requesting password reset
+    - token: Unique token (generated from UID + timestamp)
+    - created_at: When token was created
+    - is_used: Whether token has been used
+    - used_at: When token was used
+    - expires_at: When token expires
+    
+    Example:
+        - user: User(username="john_doe")
+        - token: "abc123def456"
+        - expires_at: 2026-01-04 15:00:00 (1 hour from now)
+        - is_used: False
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='password_reset_tokens',
+        verbose_name="Người dùng"
+    )
+    token = models.CharField(
+        max_length=255,
+        unique=True,
+        verbose_name="Token Reset"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Thời gian tạo"
+    )
+    expires_at = models.DateTimeField(
+        verbose_name="Hết hạn lúc"
+    )
+    is_used = models.BooleanField(
+        default=False,
+        verbose_name="Đã sử dụng"
+    )
+    used_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Thời gian sử dụng"
+    )
+    
+    class Meta:
+        verbose_name_plural = "Mã Reset Mật Khẩu"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['user', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Reset token for {self.user.username}"
+    
+    @property
+    def is_valid(self):
+        """Check if token is still valid (not expired and not used)"""
+        return not self.is_used and timezone.now() < self.expires_at
+    
+    @property
+    def is_expired(self):
+        """Check if token has expired"""
+        return timezone.now() > self.expires_at
+    
+    def mark_as_used(self):
+        """Mark token as used"""
+        self.is_used = True
+        self.used_at = timezone.now()
+        self.save()

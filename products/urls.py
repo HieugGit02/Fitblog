@@ -20,6 +20,8 @@ auth_patterns = [
     path('auth/register/', auth_views.register, name='register'),
     path('auth/login/', auth_views.login_view, name='login'),
     path('auth/logout/', auth_views.logout_view, name='logout'),
+    path('auth/password-reset/', auth_views.password_reset_request, name='password_reset_request'),
+    path('auth/password-reset/<str:token>/', auth_views.password_reset_confirm, name='password_reset_confirm'),
 ]
 
 # URL patterns
