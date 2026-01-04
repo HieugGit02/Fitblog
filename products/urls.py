@@ -5,6 +5,7 @@ URL routes for products app - REST API endpoints + Frontend pages
 
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views, auth_views
 
 # Create router and register viewsets
@@ -26,6 +27,10 @@ auth_patterns = [
 
 # URL patterns
 urlpatterns = auth_patterns + [
+    # ===== JWT TOKEN ENDPOINTS =====
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
     # API endpoints with router - prefix with /api/
     path('api/', include(router.urls)),
     
