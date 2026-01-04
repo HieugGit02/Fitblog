@@ -20,437 +20,102 @@
     {% block extra_css %}{% endblock %}
     
     <style>
-        /* ============ FIXED NAVBAR STYLES ============ */
-        
-        /* Add padding to body to account for fixed navbar */
-        body {
-            padding-top: 120px;
-        }
-        
-        /* Fixed Header */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border-bottom: 2px solid #e0e0e0;
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        header .container {
+        /* Auth Navigation Buttons */
+        .auth-nav {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 12px 20px;
-            position: relative;
+            gap: 15px;
+            margin-left: auto;
         }
         
-        /* Fixed Navigation */
-        .main-nav {
-            position: fixed;
-            top: 80px;
-            left: 0;
-            right: 0;
-            background: white;
-            border-bottom: 1px solid #f0f0f0;
-            z-index: 999;
-            padding: 0 20px;
-            display: flex;
-            align-items: center;
-            gap: 30px;
-            height: 50px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-        }
-        
-        .main-nav a {
-            color: #333;
+        .nav-link-login,
+        .nav-link-register,
+        .nav-link-user,
+        .nav-link-logout {
+            padding: 8px 16px;
+            border-radius: 4px;
             text-decoration: none;
             font-weight: 500;
             font-size: 14px;
-            padding: 15px 0;
-            transition: color 0.3s, border-bottom 0.3s;
-            border-bottom: 3px solid transparent;
-            display: flex;
-            align-items: center;
-            height: 50px;
-        }
-        
-        .main-nav a:hover {
-            color: #4CAF50;
-            border-bottom-color: #4CAF50;
-        }
-        
-        .main-nav a.nav-products {
-            background: #f0f0f0;
-            padding: 5px 12px;
-            border-radius: 20px;
-            border-bottom: none;
-            font-weight: 600;
-            color: #4CAF50;
-        }
-        
-        .main-nav a.nav-products:hover {
-            background: #e0e0e0;
-        }
-        
-        /* Hamburger Menu */
-        .nav-toggle {
-            display: none;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            z-index: 1001;
-        }
-        
-        .hamburger {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            width: 24px;
-        }
-        
-        .bar {
-            width: 24px;
-            height: 3px;
-            background: #333;
-            border-radius: 2px;
             transition: all 0.3s ease;
-        }
-        
-        .nav-toggle.active .bar:nth-child(1) {
-            transform: rotate(45deg) translate(8px, 8px);
-        }
-        
-        .nav-toggle.active .bar:nth-child(2) {
-            opacity: 0;
-        }
-        
-        .nav-toggle.active .bar:nth-child(3) {
-            transform: rotate(-45deg) translate(7px, -7px);
-        }
-        
-        /* User Menu Styles */
-        .user-menu {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            height: 50px;
-        }
-        
-        .auth-buttons {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-        
-        .btn-login, .btn-register {
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 13px;
-            transition: all 0.3s;
             display: inline-block;
             white-space: nowrap;
         }
         
-        .btn-login {
-            background: transparent;
+        .nav-link-login {
             color: #333;
-            border: 2px solid #ddd;
-        }
-        
-        .btn-login:hover {
-            background: #f0f0f0;
-            border-color: #999;
-        }
-        
-        .btn-register {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            border: 2px solid #4CAF50;
-        }
-        
-        .btn-register:hover {
-            background: linear-gradient(135deg, #45a049, #3d8b40);
-            border-color: #3d8b40;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-        }
-        
-        .user-dropdown {
-            position: relative;
-        }
-        
-        .user-btn {
-            background: #f0f0f0;
-            border: 2px solid #ddd;
-            padding: 8px 14px;
-            border-radius: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: 600;
-            font-size: 13px;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        
-        .user-btn:hover {
-            background: #e0e0e0;
-            border-color: #999;
-        }
-        
-        .user-icon {
-            font-size: 16px;
-        }
-        
-        .dropdown-arrow {
-            font-size: 10px;
-            transition: transform 0.3s;
-        }
-        
-        .user-btn:hover .dropdown-arrow {
-            transform: translateY(2px);
-        }
-        
-        .dropdown-menu {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            background: white;
             border: 1px solid #ddd;
-            border-radius: 8px;
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            min-width: 220px;
-            display: none;
-            z-index: 1001;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-            animation: slideDown 0.2s ease-out;
+            background: transparent;
         }
         
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-8px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .nav-link-login:hover {
+            background: #f0f0f0;
+            border-color: #999;
         }
         
-        .dropdown-menu.active {
-            display: block;
+        .nav-link-register {
+            background: #4CAF50;
+            color: white;
+            border: 1px solid #4CAF50;
         }
         
-        .dropdown-menu li {
-            border-bottom: 1px solid #f5f5f5;
+        .nav-link-register:hover {
+            background: #45a049;
+            border-color: #45a049;
         }
         
-        .dropdown-menu li:last-child {
-            border-bottom: none;
-        }
-        
-        .dropdown-menu a, .logout-btn {
-            display: block;
-            padding: 12px 16px;
-            color: #333;
-            text-decoration: none;
-            width: 100%;
-            text-align: left;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        }
-        
-        .dropdown-menu a:hover, .logout-btn:hover {
-            background: #f9f9f9;
+        .nav-link-user {
             color: #4CAF50;
-            padding-left: 20px;
+            border: 1px solid #4CAF50;
+            background: transparent;
+            font-weight: 600;
         }
         
-        .divider {
-            height: 6px;
-            background: #f5f5f5;
+        .nav-link-user:hover {
+            background: #f0f8f5;
         }
         
-        /* ============ RESPONSIVE MOBILE ============ */
+        .nav-link-logout {
+            color: #d32f2f;
+            border: 1px solid #d32f2f;
+            background: transparent;
+        }
         
+        .nav-link-logout:hover {
+            background: #ffebee;
+        }
+        
+        /* Mobile responsive */
         @media (max-width: 768px) {
-            body {
-                padding-top: 140px;
-            }
-            
-            .nav-toggle {
-                display: flex;
-            }
-            
-            .main-nav {
-                position: fixed;
-                top: 80px;
-                left: 0;
-                right: 0;
-                bottom: 0;
+            .auth-nav {
                 flex-direction: column;
-                align-items: flex-start;
-                gap: 0;
-                background: white;
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-                z-index: 999;
-                height: auto;
-                max-height: calc(100vh - 80px);
-                overflow-y: auto;
-                box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-                border-bottom: none;
-                padding: 20px;
-            }
-            
-            .main-nav.active {
-                transform: translateX(0);
-            }
-            
-            .main-nav a {
-                border-bottom: 1px solid #f5f5f5;
                 width: 100%;
-                padding: 15px 0;
-                height: auto;
-                border-bottom-color: transparent;
-            }
-            
-            .main-nav a:last-child {
-                border-bottom: none;
-            }
-            
-            .main-nav a.nav-products {
-                background: #f0f0f0;
-                padding: 10px 14px;
-                width: auto;
-                margin-top: 10px;
-            }
-            
-            .user-menu {
-                position: fixed;
-                top: 80px;
-                right: 20px;
-                margin-left: 0;
-                z-index: 1000;
-            }
-            
-            .auth-buttons {
-                flex-direction: column;
                 gap: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid #f0f0f0;
             }
             
-            .btn-login, .btn-register {
-                font-size: 12px;
-                padding: 8px 12px;
-                width: 100px;
+            .nav-link-login,
+            .nav-link-register,
+            .nav-link-user,
+            .nav-link-logout {
+                width: 100%;
                 text-align: center;
             }
-            
-            .user-btn {
-                font-size: 12px;
-                padding: 8px 10px;
-            }
-            
-            .username {
-                display: none;
-            }
-            
-            .dropdown-arrow {
-                display: none;
-            }
-            
-            .dropdown-menu {
-                top: calc(100% + 4px);
-                right: 0;
-                min-width: 200px;
-            }
-            
-            .dropdown-menu a {
-                font-size: 13px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            body {
-                padding-top: 120px;
-            }
-            
-            header .container {
-                padding: 10px 15px;
-            }
-            
-            .site-title {
-                font-size: 16px;
-            }
-            
-            .site-tagline {
-                display: none;
-            }
-            
-            .main-nav {
-                top: 60px;
-                padding: 15px;
-            }
-            
-            .user-menu {
-                top: 60px;
-                right: 15px;
-                height: auto;
-            }
-            
-            .btn-login, .btn-register {
-                padding: 6px 10px;
-                font-size: 11px;
-                width: 80px;
-            }
-            
-            .user-btn {
-                padding: 6px 8px;
-                font-size: 11px;
-            }
-        }
-        
-        /* ============ NAV OVERLAY ============ */
-        .nav-overlay {
-            position: fixed;
-            top: 80px;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            z-index: 998;
-        }
-        
-        .nav-overlay.active {
-            display: block;
         }
     </style>
-
 </head>
 <body>
     <!-- Header -->
     <header>
         <div class="container">
             <div class="brand">
-                <img src="{% static 'img/logo.svg' %}" alt="Fitblog logo" class="site-logo" width="40" height="40">
+                <img src="{% static 'img/logo.svg' %}" alt="Fitblog logo" class="site-logo" width="52" height="52">
                 <h1 class="site-title">FITBLOG</h1>
             </div>
             <p class="site-tagline">Kiến thức về dinh dưỡng, thể hình và lối sống lành mạnh</p>
-            
-            <!-- Mobile nav toggle -->
+            <!-- Mobile nav toggle moved into header for balanced layout -->
             <button id="nav-toggle" class="nav-toggle" aria-label="Mở menu" aria-expanded="false">
                 <span class="hamburger">
                     <span class="bar"></span>
@@ -458,54 +123,11 @@
                     <span class="bar"></span>
                 </span>
             </button>
-            
-            <!-- User Menu - TOP RIGHT CORNER (Mobile) -->
-            <div class="user-menu">
-                {% if user.is_authenticated %}
-                    <!-- LOGGED IN: Show user dropdown -->
-                    <div class="user-dropdown">
-                        <button class="user-btn" id="user-dropdown-toggle" type="button">
-                            <span class="user-icon">👤</span>
-                            <span class="username">{{ user.username }}</span>
-                            <span class="dropdown-arrow">▼</span>
-                        </button>
-                        
-                        <ul class="dropdown-menu" id="user-dropdown-menu">
-                            <li>
-                                <a href="{% url 'products:user_profile_view' %}">
-                                    📋 Hồ Sơ Cá Nhân
-                                </a>
-                            </li>
-                            <li>
-                                <a href="{% url 'products:user_profile_setup' %}">
-                                    ⚙️ Cập Nhật Thông Tin
-                                </a>
-                            </li>
-                            <li class="divider"></li>
-                            <li>
-                                <a href="{% url 'products:logout' %}">
-                                    🚪 Đăng Xuất
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-                {% else %}
-                    <!-- NOT LOGGED IN: Show login/register buttons -->
-                    <div class="auth-buttons">
-                        <a href="{% url 'products:login' %}" class="btn-login">
-                            🔓 Đăng Nhập
-                        </a>
-                        <a href="{% url 'products:register' %}" class="btn-register">
-                            ✍️ Đăng Kí
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
         </div>
     </header>
 
     <!-- Navigation -->
-    <nav class="main-nav" id="main-nav">
+    <nav class="container main-nav" id="main-nav">
         <a href="{% url 'blog:home' %}">Trang chủ</a>
         <a href="{% url 'blog:post_list' %}">Blog</a>
         <a href="{% url 'blog:categories' %}">Danh Mục</a>
@@ -516,9 +138,20 @@
         {% if user.is_staff %}
             <a href="{% url 'admin:index' %}">Admin</a>
         {% endif %}
+        
+        <!-- Auth Links - No Icons -->
+        <div class="auth-nav">
+            {% if user.is_authenticated %}
+                <a href="{% url 'products:user_profile_view' %}" class="nav-link-user">{{ user.username }}</a>
+                <a href="{% url 'products:logout' %}" class="nav-link-logout">Đăng Xuất</a>
+            {% else %}
+                <a href="{% url 'products:login' %}" class="nav-link-login">Đăng Nhập</a>
+                <a href="{% url 'products:register' %}" class="nav-link-register">Đăng Kí</a>
+            {% endif %}
+        </div>
     </nav>
 
-    <!-- overlay for mobile nav -->
+    <!-- overlay for off-canvas nav -->
     <div id="nav-overlay" class="nav-overlay" aria-hidden="true"></div>
 
     <!-- Main Content -->
@@ -536,103 +169,6 @@
     <!-- Messenger Widget -->
     <script src="{% static 'js/header.js' %}?v=8"></script>
     <script src="{% static 'js/messenger.js' %}?v=9"></script>
-    
-    <!-- Navigation & User Menu Scripts -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // ============ MOBILE NAVIGATION TOGGLE ============
-            const navToggle = document.getElementById('nav-toggle');
-            const mainNav = document.getElementById('main-nav');
-            const navOverlay = document.getElementById('nav-overlay');
-            
-            if (navToggle && mainNav && navOverlay) {
-                // Toggle nav visibility
-                navToggle.addEventListener('click', function() {
-                    mainNav.classList.toggle('active');
-                    navOverlay.classList.toggle('active');
-                    navToggle.classList.toggle('active');
-                    navToggle.setAttribute('aria-expanded', 
-                        navToggle.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'
-                    );
-                });
-                
-                // Close nav when overlay is clicked
-                navOverlay.addEventListener('click', function() {
-                    mainNav.classList.remove('active');
-                    navOverlay.classList.remove('active');
-                    navToggle.classList.remove('active');
-                    navToggle.setAttribute('aria-expanded', 'false');
-                });
-                
-                // Close nav when a link is clicked
-                const navLinks = mainNav.querySelectorAll('a');
-                navLinks.forEach(link => {
-                    link.addEventListener('click', function() {
-                        mainNav.classList.remove('active');
-                        navOverlay.classList.remove('active');
-                        navToggle.classList.remove('active');
-                        navToggle.setAttribute('aria-expanded', 'false');
-                    });
-                });
-                
-                // Close nav when clicking outside
-                document.addEventListener('click', function(event) {
-                    const isClickInsideNav = mainNav.contains(event.target);
-                    const isClickOnToggle = navToggle.contains(event.target);
-                    
-                    if (!isClickInsideNav && !isClickOnToggle && mainNav.classList.contains('active')) {
-                        mainNav.classList.remove('active');
-                        navOverlay.classList.remove('active');
-                        navToggle.classList.remove('active');
-                        navToggle.setAttribute('aria-expanded', 'false');
-                    }
-                });
-            }
-            
-            // ============ USER DROPDOWN TOGGLE ============
-            const toggle = document.getElementById('user-dropdown-toggle');
-            const menu = document.getElementById('user-dropdown-menu');
-            
-            if (toggle && menu) {
-                toggle.addEventListener('click', function(event) {
-                    event.stopPropagation();
-                    menu.classList.toggle('active');
-                });
-                
-                // Close dropdown when clicking outside
-                document.addEventListener('click', function(event) {
-                    if (!event.target.closest('.user-dropdown')) {
-                        menu.classList.remove('active');
-                    }
-                });
-                
-                // Close dropdown when a menu link is clicked
-                const menuLinks = menu.querySelectorAll('a');
-                menuLinks.forEach(link => {
-                    link.addEventListener('click', function() {
-                        menu.classList.remove('active');
-                    });
-                });
-            }
-            
-            // ============ SMOOTH SCROLL FOR ANCHOR LINKS ============
-            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', function(e) {
-                    const href = this.getAttribute('href');
-                    if (href !== '#') {
-                        e.preventDefault();
-                        const target = document.querySelector(href);
-                        if (target) {
-                            target.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }
-                    }
-                });
-            });
-        });
-    </script>
 
     {% block extra_js %}{% endblock %}
 </body>
