@@ -5,7 +5,7 @@ URL routes for products app - REST API endpoints + Frontend pages
 
 from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
-from . import views
+from . import views, auth_views
 
 # Create router and register viewsets
 router = DefaultRouter()
@@ -15,8 +15,15 @@ router.register(r'reviews', views.ProductReviewViewSet, basename='review')
 
 app_name = 'products'
 
+# Authentication URL patterns
+auth_patterns = [
+    path('auth/register/', auth_views.register, name='register'),
+    path('auth/login/', auth_views.login_view, name='login'),
+    path('auth/logout/', auth_views.logout_view, name='logout'),
+]
+
 # URL patterns
-urlpatterns = [
+urlpatterns = auth_patterns + [
     # API endpoints with router - prefix with /api/
     path('api/', include(router.urls)),
     
@@ -41,6 +48,10 @@ urlpatterns = [
 # GET  /api/products/{id}/recommendations/ - API: Recommendations
 # GET  /api/categories/                  - API: List categories
 # GET  /api/reviews/                     - API: List reviews
+#
+# GET  /auth/register/                   - AUTH: Registration page
+# GET  /auth/login/                      - AUTH: Login page
+# POST /auth/logout/                     - AUTH: Logout
 #
 # GET  /products/                        - HTML: Product listing page
 # GET  /products/{slug}/                 - HTML: Product detail page

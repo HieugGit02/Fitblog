@@ -4,6 +4,7 @@ Products app models for supplement e-commerce with recommendation system
 """
 
 from django.db import models
+from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.text import slugify
 from django.urls import reverse
@@ -362,8 +363,8 @@ class ProductReview(models.Model):
 
 class UserProfile(models.Model):
     """
-    Hồ sơ người dùng (anonymous, cookie-based).
-    Không cần login, dùng session_id từ browser cookies.
+    Hồ sơ người dùng (Authentication-based).
+    Liên kết với Django User model qua OneToOne relationship.
     
     Dùng để:
     1. Track user metrics (age, weight, goal, etc)
@@ -371,7 +372,7 @@ class UserProfile(models.Model):
     3. Analytics & user behavior analysis
     
     Example:
-        - session_id: "abc123def456"
+        - user: User(username="john_doe")
         - age: 30
         - weight_kg: 75
         - height_cm: 175
@@ -402,11 +403,23 @@ class UserProfile(models.Model):
         ('female', 'Nữ'),
     ]
 
-    # ========== SESSION TRACKING ==========
+    # ========== USER AUTHENTICATION ==========
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        null=True,
+        blank=True,
+        verbose_name="Người dùng"
+    )
+    
+    # ========== SESSION TRACKING (Deprecated, for backward compatibility) ==========
     session_id = models.CharField(
         max_length=255,
         unique=True,
-        verbose_name="Session ID (từ cookie)"
+        null=True,
+        blank=True,
+        verbose_name="Session ID (Legacy, không sử dụng)"
     )
 
     # ========== PHYSICAL METRICS ==========

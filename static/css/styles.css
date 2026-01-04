@@ -98,95 +98,16 @@ header h1 {
     font-size: 1rem;
 }
 
+/* ===== OLD NAV STYLES (DEPRECATED - Using inline styles from base.html) ===== */
+/* Keeping minimal structure here, main styles now in base.html <style> tag */
+
 .main-nav.container a {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
-/* Mobile hamburger button */
-.nav-toggle {
-    display: none;
-    position: absolute;
-    right: 8px;
-    top: 8px;
-    background: transparent;
-    border: 0;
-    padding: 6px;
-    width: 44px;
-    height: 44px;
-    align-items: center;
-    justify-content: center;
-    z-index: 12002;
-    cursor: pointer;
-}
-
-.nav-toggle .hamburger {
-    display: inline-block;
-    width: 26px;
-    height: 18px;
-    position: relative;
-}
-
-.nav-toggle .bar {
-    display: block;
-    height: 2px;
-    width: 100%;
-    background: var(--color-gray-dark);
-    border-radius: 2px;
-    position: absolute;
-    left: 0;
-    transition: transform 0.28s cubic-bezier(.2,.8,.2,1), opacity 0.2s;
-}
-.nav-toggle .bar:nth-child(1) { top: 0; }
-.nav-toggle .bar:nth-child(2) { top: 8px; }
-.nav-toggle .bar:nth-child(3) { top: 16px; }
-
-.nav-toggle.open .bar:nth-child(1) {
-    transform: translateY(8px) rotate(45deg);
-}
-.nav-toggle.open .bar:nth-child(2) {
-    opacity: 0;
-}
-.nav-toggle.open .bar:nth-child(3) {
-    transform: translateY(-8px) rotate(-45deg);
-}
-
-/* small-screen nav behavior */
+/* ===== DEPRECATED: Old mobile styles (overridden by base.html) ===== */
 @media (max-width: 880px) {
-    .nav-toggle { display: inline-flex; }
-    /* use ID selector for higher specificity so later .main-nav rules don't override */
-    #main-nav { display: none; }
-    /* off-canvas sliding menu - compact popup style */
-    #main-nav.open {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        position: fixed;
-        right: 0;
-        top: 68px;
-        height: auto;
-        max-height: calc(100vh - 100px);
-        width: 200px;
-        transform: translateX(0);
-        background: var(--color-white);
-        padding: 0.75rem;
-        border-radius: 8px 0 8px 8px;
-        box-shadow: -8px 8px 24px rgba(0,0,0,0.1);
-        z-index: 11999;
-        transition: transform 0.32s cubic-bezier(.2,.8,.2,1);
-        overflow-y: auto;
-    }
-
-    /* overlay */
-    .nav-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.35);
-        z-index: 11990;
-        opacity: 0;
-        transition: opacity 0.25s ease;
-    }
-    .nav-overlay.visible { display: block; opacity: 1; }
+    /* New styles in base.html handle this */
 }
 
 h2 {
@@ -215,18 +136,10 @@ a:hover {
 }
 
 /* ===== HEADER ===== */
-/* Header: centered layout with nicer typography */
-header {
-    background: linear-gradient(135deg, #C8E6C9 0%, #FFCCBC 100%);
-    color: var(--color-black);
-    padding: calc(var(--spacing-lg) + 0.5rem) var(--spacing-md);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-    animation: slideDown 0.5s ease-out;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    transition: opacity 0.05s linear;
+/* FIXED HEADER - Styles now primarily in base.html for maintainability */
+header .container {
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 @keyframes slideDown {

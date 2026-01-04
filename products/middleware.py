@@ -25,24 +25,11 @@ class UserProfileMiddleware(MiddlewareMixin):
     def process_request(self, request):
         """
         Called for each request - before view is processed
+        
+        NOTE: Deprecated in favor of authentication-based approach
         """
-        # Tự động tạo session nếu chưa có
-        if not request.session.session_key:
-            request.session.create()
-        
-        session_id = request.session.session_key
-        
-        # Get UserProfile nếu tồn tại (không tạo mới)
-        try:
-            user_profile = UserProfile.objects.get(session_id=session_id)
-            # Update last_activity nếu profile tồn tại
-            user_profile.save(update_fields=['last_activity'])
-        except UserProfile.DoesNotExist:
-            # Không tạo profile ở đây
-            # Chỉ tạo khi user submit form
-            user_profile = None
-        
-        # Thêm vào request (có thể None)
-        request.user_profile = user_profile
+        # DEPRECATED: No longer creating UserProfile from session_id
+        # UserProfile is now linked to User model via OneToOneField
+        # This middleware remains for backward compatibility only
         
         return None
