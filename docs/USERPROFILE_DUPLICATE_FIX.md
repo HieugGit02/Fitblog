@@ -106,9 +106,9 @@ Sau khi áp dụng tất cả giải pháp:
 
 🔍 Users and their profiles:
    ✅ admin          → Profile #1 (Goal: general-health)
-   ✅ hieuadmin123   → Profile #2 (Goal: general-health)
-   ✅ longadmin      → Profile #4 (Goal: general-health)
-   ✅ haoadmin123    → Profile #8 (Goal: general-health)
+   ✅ user2 → Profile #2 (Goal: general-health)
+   ✅ user3     → Profile #4 (Goal: general-health)
+   ✅ user4   → Profile #8 (Goal: general-health)
 
 ✅ No orphaned profiles found!
 ════════════════════════════════════════════════════════════════
