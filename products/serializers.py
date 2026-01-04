@@ -16,16 +16,27 @@ class ProductCategorySerializer(serializers.ModelSerializer):
 
 
 class ProductReviewSerializer(serializers.ModelSerializer):
-    """Serializer for ProductReview"""
+    """
+    Serializer for ProductReview
+    
+    Includes user_id & product_id để dùng cho Collaborative Filtering:
+    - user_id: User đã đánh giá sản phẩm
+    - product_id: Sản phẩm được đánh giá
+    - rating: Điểm đánh giá (1-5 sao) - tạo user-item matrix
+    """
+    username = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True, allow_null=True)
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
     
     class Meta:
         model = ProductReview
         fields = [
-            'id', 'author_name', 'rating', 'title', 'content',
-            'is_verified_purchase', 'helpful_count',
+            'id', 'user_id', 'username', 'product_id',
+            'author_name', 'rating', 'title', 'content',
+            'is_verified_purchase', 'is_approved', 'helpful_count',
             'created_at'
         ]
-        read_only_fields = ['id', 'created_at', 'helpful_count']
+        read_only_fields = ['id', 'created_at', 'helpful_count', 'user_id', 'username', 'product_id']
 
 
 class ProductSerializer(serializers.ModelSerializer):

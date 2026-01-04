@@ -337,23 +337,27 @@ class ProductReviewAdmin(admin.ModelAdmin):
     list_display = [
         'product_name',
         'rating_stars',
-        'author_name',
+        'user_or_author',
         'verified_badge',
         'approved_badge',
         'helpful_count',
         'created_at'
     ]
-    list_filter = ['rating', 'is_approved', 'is_verified_purchase', 'created_at']
-    search_fields = ['product__name', 'author_name', 'title', 'content']
+    list_filter = ['rating', 'is_approved', 'is_verified_purchase', 'created_at', 'user']
+    search_fields = ['product__name', 'author_name', 'user__username', 'title', 'content']
     readonly_fields = ['created_at', 'updated_at']
     list_per_page = 20
     date_hierarchy = 'created_at'
     actions = ['approve_reviews', 'reject_reviews']
 
     fieldsets = (
-        ('📦 Sản phẩm &  Tác giả', {
-            'fields': ('product', 'author_name', 'author_email', 'is_verified_purchase'),
-            'description': 'Chọn sản phẩm và nhập thông tin tác giả review'
+        ('� User & Sản phẩm', {
+            'fields': ('user', 'product', 'is_verified_purchase'),
+            'description': 'Chọn user đã đăng nhập (dùng cho Collaborative Filtering) và sản phẩm'
+        }),
+        ('📝 Thông tin tác giả', {
+            'fields': ('author_name', 'author_email'),
+            'description': 'Tên & email - dùng nếu user không được chọn'
         }),
         ('💬 Nội dung đánh giá', {
             'fields': ('title', 'rating', 'content'),
@@ -368,6 +372,21 @@ class ProductReviewAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+    def user_or_author(self, obj):
+        """Hiển thị user hoặc tên tác giả"""
+        if obj.user:
+            return format_html(
+                '<strong style="color:#0066cc;">👤 {}</strong><br/><small>(uid: {})</small>',
+                obj.user.username,
+                obj.user.id
+            )
+        else:
+            return format_html(
+                '<em>{}</em>',
+                obj.author_name
+            )
+    user_or_author.short_description = "Người dùng / Tác giả"
 
     def product_name(self, obj):
         """Hiển thị sản phẩm được đánh giá"""

@@ -207,20 +207,41 @@ class ProductCategoryViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductReviewViewSet(viewsets.ModelViewSet):
-    """API ViewSet for ProductReview"""
+    """
+    API ViewSet for ProductReview
+    
+    Dùng cho Collaborative Filtering Recommendation:
+    - GET /api/reviews/ → Lấy tất cả approved reviews (kèm user_id, product_id, rating)
+    - POST /api/reviews/ → Tạo review mới (tự động gán user nếu authenticated)
+    - POST /api/reviews/{id}/mark_helpful/ → Đánh dấu review hữu ích
+    """
     queryset = ProductReview.objects.filter(is_approved=True).order_by('-created_at')
     serializer_class = ProductReviewSerializer
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ['product', 'rating']
-    ordering_fields = ['rating', '-created_at']
+    filterset_fields = ['product', 'rating', 'user']  # Thêm user filter
+    ordering_fields = ['rating', '-created_at', 'user']
     ordering = ['-created_at']
     
     def create(self, request, *args, **kwargs):
-        """Create a new review"""
+        """
+        Create a new review
+        Tự động gán user nếu user đã authenticated
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        # Tự động gán user nếu authenticated
+        if request.user.is_authenticated:
+            self.perform_create(serializer, user=request.user)
+        else:
+            self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    def perform_create(self, serializer, user=None):
+        """Override để gán user"""
+        if user:
+            serializer.save(user=user)
+        else:
+            serializer.save()
     
     @action(detail=True, methods=['post'])
     def mark_helpful(self, request, pk=None):
@@ -280,7 +301,7 @@ def user_profile_setup(request):
         if form.is_valid():
             form.save()
             messages.success(request, '✅ Thông tin của bạn đã được lưu!')
-            return redirect('products:product_list')
+            return redirect('products:user_profile_view')
         else:
             messages.error(request, '❌ Vui lòng kiểm tra lại thông tin!')
     else:
@@ -343,7 +364,9 @@ def user_profile_view(request):
     """
     Xem & chỉnh sửa profile của user
     
-    ONLY FOR AUTHENTICATED USERS!
+    SUPPORTS BOTH:
+    1. Authenticated users (linked to User model)
+    2. Session-based users (no login required)
     
     GET: Hiển thị thông tin profile (với metrics tính toán)
     POST: Update profile
@@ -351,22 +374,36 @@ def user_profile_view(request):
     URL: /products/profile/
     Template: products/user_profile_view.html
     """
-    # Require login
-    if not request.user.is_authenticated:
-        messages.error(request, 'Bạn cần đăng nhập')
-        return redirect('products:product_list')
+    # Try to get UserProfile
+    user_profile = None
     
-    # Get UserProfile (created by signal)
-    try:
-        user_profile = UserProfile.objects.get(user=request.user)
-    except UserProfile.DoesNotExist:
-        messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
-        return redirect('products:product_list')
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            messages.error(request, 'Lỗi: Không tìm thấy hồ sơ')
+            return redirect('products:product_list')
     
-    # Lấy recommendation logs
+    # Priority 2: Session-based user
+    if not user_profile:
+        session_id = request.session.session_key
+        if session_id:
+            try:
+                user_profile = UserProfile.objects.get(session_id=session_id)
+            except UserProfile.DoesNotExist:
+                messages.warning(request, 'Vui lòng điền thông tin profile trước')
+                return redirect('products:user_profile_setup')
+    
+    # If still no profile, redirect to setup
+    if not user_profile:
+        messages.warning(request, 'Vui lòng điền thông tin profile')
+        return redirect('products:user_profile_setup')
+    
+    # Lấy recommendation logs (personalized)
     personalized_products = RecommendationLog.objects.filter(
         user_profile=user_profile,
-        recommendation_type='personalized'
+        recommendation_type__in=['personalized', 'goal-based']
     ).order_by('-created_at')[:6]
     
     # Lấy tất cả logs
@@ -380,6 +417,7 @@ def user_profile_view(request):
         'all_logs': all_logs,
         'bmi_status': get_bmi_status(user_profile.bmi) if user_profile.bmi else None,
         'tdee_info': get_tdee_info(user_profile.tdee) if user_profile.tdee else None,
+        'has_profile_filled': bool(user_profile.goal and user_profile.goal != 'general-health'),
     }
     
     return render(request, 'products/user_profile_view.html', context)
@@ -564,29 +602,43 @@ def product_list(request):
     ).distinct()
     
     # Log recommendation views for users with profile
-    session_id = request.session.session_key
-    if session_id:
-        user_profile = UserProfile.objects.filter(session_id=session_id).first()
-        if user_profile and user_profile.goal:  # Only log if user has setup profile with goal
-            # Filter products that match user's goal (true recommendations)
-            recommended_products = Product.objects.filter(
-                status='active',
-                suitable_for_goals__icontains=user_profile.goal
-            )
-            
-            # Log ONLY matching products as "personalized" recommendations
-            for product in page_obj.object_list:
-                if product in recommended_products:
-                    # Match user's goal → "personalized" recommendation
-                    RecommendationLog.objects.get_or_create(
-                        user_profile=user_profile,
-                        recommended_product=product,
-                        defaults={
-                            'recommendation_type': 'personalized',
-                            'score': 0.95,  # High score for goal match
-                        }
-                    )
-                # Don't log non-matching products
+    user_profile = None
+    
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # Priority 2: Session-based user
+    if not user_profile:
+        session_id = request.session.session_key
+        if session_id:
+            user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    
+    # Log only if user has setup profile with goal
+    if user_profile and user_profile.goal and user_profile.goal != 'general-health':
+        # Filter products that match user's goal (true recommendations)
+        recommended_products = set(Product.objects.filter(
+            status='active',
+            suitable_for_goals__icontains=user_profile.goal
+        ).values_list('id', flat=True))
+        
+        # Log matching products as "personalized" recommendations
+        for product in page_obj.object_list:
+            if product.id in recommended_products:
+                # Match user's goal → "personalized" recommendation
+                # Don't mark as clicked yet (user only saw on list, not detail page)
+                RecommendationLog.objects.get_or_create(
+                    user_profile=user_profile,
+                    recommended_product=product,
+                    defaults={
+                        'recommendation_type': 'personalized',
+                        'score': 0.95,  # High score for goal match
+                        'clicked': False,  # Not clicked yet, just shown on list
+                    }
+                )
     
     context = {
         'page_obj': page_obj,
@@ -665,43 +717,67 @@ def product_detail(request, slug):
     review_count = product.get_review_count()
     
     # Log product view + recommendations for user with profile
-    session_id = request.session.session_key
-    if session_id:
-        user_profile = UserProfile.objects.filter(session_id=session_id).first()
-        if user_profile and user_profile.goal:  # Only log if user has setup profile with goal
-            # Check if main product matches user's goal
-            if user_profile.goal in product.suitable_for_goals:
-                # Log the main product as "personalized" (matches goal)
-                RecommendationLog.objects.get_or_create(
+    user_profile = None
+    
+    # Priority 1: Authenticated user
+    if request.user.is_authenticated:
+        try:
+            user_profile = UserProfile.objects.get(user=request.user)
+        except UserProfile.DoesNotExist:
+            pass
+    
+    # Priority 2: Session-based user
+    if not user_profile:
+        session_id = request.session.session_key
+        if session_id:
+            user_profile = UserProfile.objects.filter(session_id=session_id).first()
+    
+    # Only log if user has setup profile with goal
+    if user_profile and user_profile.goal and user_profile.goal != 'general-health':
+        # Check if main product matches user's goal
+        if user_profile.goal in product.suitable_for_goals:
+            # Log the main product as "personalized" (matches goal)
+            log, created = RecommendationLog.objects.get_or_create(
+                user_profile=user_profile,
+                recommended_product=product,
+                defaults={
+                    'recommendation_type': 'personalized',
+                    'score': 0.95,
+                    'clicked': True,  # Mark as clicked when user views product detail
+                }
+            )
+            # If log already existed, mark as clicked
+            if not created and not log.clicked:
+                log.clicked = True
+                log.save()
+        else:
+            # Log as "content-based" (same category but different goal)
+            log, created = RecommendationLog.objects.get_or_create(
+                user_profile=user_profile,
+                recommended_product=product,
+                defaults={
+                    'recommendation_type': 'content-based',
+                    'score': 0.5,
+                    'clicked': True,  # Mark as clicked when user views product detail
+                }
+            )
+            # If log already existed, mark as clicked
+            if not created and not log.clicked:
+                log.clicked = True
+                log.save()
+        
+        # Log recommended products (only if match goal)
+        for rec_product in recommendations:
+            if user_profile.goal in rec_product.suitable_for_goals:
+                log, created = RecommendationLog.objects.get_or_create(
                     user_profile=user_profile,
-                    recommended_product=product,
+                    recommended_product=rec_product,
                     defaults={
                         'recommendation_type': 'personalized',
                         'score': 0.95,
                     }
                 )
-            else:
-                # Log as "content-based" (same category but different goal)
-                RecommendationLog.objects.get_or_create(
-                    user_profile=user_profile,
-                    recommended_product=product,
-                    defaults={
-                        'recommendation_type': 'content-based',
-                        'score': 0.5,
-                    }
-                )
-            
-            # Log recommended products (only if match goal)
-            for rec_product in recommendations:
-                if user_profile.goal in rec_product.suitable_for_goals:
-                    RecommendationLog.objects.get_or_create(
-                        user_profile=user_profile,
-                        recommended_product=rec_product,
-                        defaults={
-                            'recommendation_type': 'personalized',
-                            'score': 0.95,
-                        }
-                    )
+                # Don't mark rec_product as clicked (user hasn't viewed them yet)
     
     context = {
         'product': product,

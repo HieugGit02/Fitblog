@@ -298,13 +298,28 @@ class ProductReview(models.Model):
     """
     Review & rating cho sản phẩm
     
+    Dùng cho Collaborative Filtering recommendation:
+    - user_id: Để xác định người đánh giá (dùng làm input cho collab filtering)
+    - product_id: Sản phẩm được đánh giá
+    - rating: Điểm đánh giá (1-5 sao) - tạo user-item matrix
+    
     Example:
-        - product: Whey Protein Gold
-        - author_name: "Minh Phạm"
+        - user: User(id=1, username="john_doe")
+        - product: Whey Protein Gold (id=5)
         - rating: 5
         - content: "Sản phẩm rất tốt, giao nhanh"
         - is_approved: True (chỉ show review approved)
     """
+    # ========== USER & PRODUCT ==========
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='product_reviews',
+        verbose_name="Người dùng",
+        null=True,
+        blank=True,
+        help_text="User đã đăng nhập - dùng cho Collaborative Filtering"
+    )
     product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
@@ -351,10 +366,21 @@ class ProductReview(models.Model):
         indexes = [
             models.Index(fields=['product', '-rating']),
             models.Index(fields=['-created_at']),
+            models.Index(fields=['user', 'product']),  # Dùng cho Collaborative Filtering
+            models.Index(fields=['user', '-created_at']),  # Tìm review của user
+        ]
+        # Mỗi user chỉ có 1 review cho 1 sản phẩm
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'product'],
+                name='unique_user_product_review',
+                condition=models.Q(user__isnull=False)
+            )
         ]
 
     def __str__(self):
-        return f"{self.rating}⭐ - {self.title}"
+        user_str = self.user.username if self.user else self.author_name
+        return f"{self.rating}⭐ - {user_str} - {self.title}"
 
 
 # ============================================================================
