@@ -61,12 +61,14 @@ class FitblogAdminSite(admin.AdminSite):
         # Top goals
         top_goals = []
         goal_names = {
-            'muscle-gain': '💪 Tăng cơ',
-            'fat-loss': '⚖️ Giảm cân',
-            'strength': '🔥 Tăng sức mạnh',
-            'endurance': '🏃 Tăng sức bền',
-            'general-health': '❤️ Sức khỏe chung',
-            'athletic': '🏅 Thể thao',
+            'muscle-gain': 'Tăng cơ',
+            'fat-loss': 'Giảm cân',
+            'strength': 'Tăng sức mạnh',
+            'endurance': 'Tăng sức bền',
+            'body-recomposition': 'Vừa tăng cơ vừa giảm mỡ',
+            'maintenance': 'Duy trì thể trạng',
+            'general-health': 'Sức khỏe chung',
+            'athletic': 'Thể thao',
         }
         for goal_data in users_by_goal:
             goal_key = goal_data['goal']

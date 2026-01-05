@@ -93,6 +93,7 @@ class Product(models.Model):
         ('isolate', 'Whey Isolate'),
         ('hydrolyzed', 'Whey Hydrolyzed'),
         ('concentrate', 'Whey Concentrate'),
+        ('mass', 'Mass Gainer'),
         ('casein', 'Casein Protein'),
         ('creatine', 'Creatine'),
         ('preworkout', 'Pre-workout'),
@@ -207,13 +208,13 @@ class Product(models.Model):
     tags = models.CharField(
         max_length=300,
         blank=True,
-        help_text="Phân tách bằng dấu phẩy (ví dụ: muscle-gain, lean, vegan)",
+        help_text="Phân tách bằng dấu phẩy (ví dụ: muscle-gain,weight-gain,lean, vegan,... )",
         verbose_name="Tags"
     )
     suitable_for_goals = models.CharField(
         max_length=300,
         blank=True,
-        help_text="Phân tách bằng dấu phẩy (ví dụ: muscle-gain, fat-loss, strength)",
+        help_text="Phân tách bằng dấu phẩy (ví dụ: muscle-gain, weight-gain, fat-loss, strength, recovery, maintenance, free-lactose, whey-protein,...)",
         verbose_name="Phù hợp cho mục tiêu"
     )
     embedding_vector = models.JSONField(
@@ -413,8 +414,10 @@ class UserProfile(models.Model):
         ('fat-loss', 'Giảm cân'),
         ('strength', 'Tăng sức mạnh'),
         ('endurance', 'Tăng sức bền'),
+        ('body-recomposition', 'Vừa tăng cơ vừa giảm mỡ'),
+        ('maintenance', 'Duy trì thể trạng'),
         ('general-health', 'Sức khỏe chung'),
-        ('athletic', 'Thể thao'),
+        ('athletic', 'Thể thao'),  
     ]
     
     ACTIVITY_CHOICES = [
