@@ -91,6 +91,7 @@ class Product(models.Model):
     SUPPLEMENT_TYPE_CHOICES = [
         ('whey', 'Whey Protein'),
         ('isolate', 'Whey Isolate'),
+        ('hydrolyzed', 'Whey Hydrolyzed'),
         ('concentrate', 'Whey Concentrate'),
         ('casein', 'Casein Protein'),
         ('creatine', 'Creatine'),
