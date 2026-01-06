@@ -296,6 +296,7 @@
         📂 Tất Cả
     </a>
     {% for category in categories %}
+    {% if category.slug %}
     <a href="{{ category.get_absolute_url }}" class="{% if current_category.id == category.id %}active{% endif %}">
         {% if category.icon_image %}
             <img src="{{ category.icon_image.url }}" alt="{{ category.name }}" class="cat-icon">
@@ -305,6 +306,7 @@
         <span class="cat-name">{{ category.name }}</span>
         <span class="cat-color" style="background: {{ category.color }}"></span>
     </a>
+    {% endif %}
     {% endfor %}
 </div>
 {% endif %}

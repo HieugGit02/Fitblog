@@ -371,6 +371,7 @@
     <h2 class="section-title">Danh Mục</h2>
     <div class="grid grid-4" style="margin-top: 50px;">
         {% for category in categories %}
+        {% if category.slug %}
         <a href="{{ category.get_absolute_url }}" style="text-decoration: none;">
             <div class="category-card">
                 <div class="category-icon">{{ category.icon }}</div>
@@ -378,6 +379,8 @@
                 <div class="category-count">{{ category.post_count }} bài viết</div>
             </div>
         </a>
+        {% endif %}
+
         {% endfor %}
     </div>
 </div>

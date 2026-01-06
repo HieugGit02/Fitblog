@@ -213,32 +213,43 @@
         {% endif %}
 
         {% if reviews %}
-            {% for review in reviews %}
-            <div class="review-item">
-                <div class="review-header">
-                    <div>
-                        <div class="review-author">{{ review.author_name }}</div>
-                        <div class="review-date">{{ review.created_at|date:"d/m/Y" }}</div>
+            <div class="reviews-list" id="reviewsList">
+                {% for review in reviews %}
+                <div class="review-item" {% if forloop.counter > 3 %}style="display: none;" class="review-hidden"{% endif %}>
+                    <div class="review-header">
+                        <div>
+                            <div class="review-author">{{ review.author_name }}</div>
+                            <div class="review-date">{{ review.created_at|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="review-rating">
+                            {% for i in rating_range %}
+                                {% if i <= review.rating %}★{% else %}☆{% endif %}
+                            {% endfor %}
+                            {{ review.rating }}/5
+                        </div>
                     </div>
-                    <div class="review-rating">
-                        {% for i in rating_range %}
-                            {% if i <= review.rating %}★{% else %}☆{% endif %}
-                        {% endfor %}
-                        {{ review.rating }}/5
+                    <div class="review-title">{{ review.title }}</div>
+                    <div class="review-content">{{ review.content }}</div>
+                    <div class="tags-list">
+                        {% if review.is_verified_purchase %}
+                            <span class="tag">Xác minh mua hàng</span>
+                        {% endif %}
+                        <button class="helpful-btn" data-review-id="{{ review.id }}" onclick="markHelpful(this)">
+                            👍 <span class="helpful-count">{{ review.helpful_count }}</span> người tìm hữu ích
+                        </button>
                     </div>
                 </div>
-                <div class="review-title">{{ review.title }}</div>
-                <div class="review-content">{{ review.content }}</div>
-                <div class="tags-list">
-                    {% if review.is_verified_purchase %}
-                        <span class="tag">Xác minh mua hàng</span>
-                    {% endif %}
-                    <button class="helpful-btn" data-review-id="{{ review.id }}" onclick="markHelpful(this)">
-                        👍 <span class="helpful-count">{{ review.helpful_count }}</span> người tìm hữu ích
-                    </button>
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+            
+            {% if reviews|length > 3 %}
+            <div class="reviews-actions">
+                <button class="btn-view-more" onclick="viewMoreReviews()">
+                    <span class="view-more-text">+ Xem thêm {{ reviews|length|add:"-3" }} bình luận</span>
+                    <span class="view-less-text" style="display: none;">- Ẩn bớt bình luận</span>
+                </button>
+            </div>
+            {% endif %}
         {% else %}
             <div class="description-section">
                 <p>Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
@@ -444,5 +455,33 @@
             console.error('Tracking error:', error);
         });
     });
+
+    // Toggle review list expand/collapse
+    function viewMoreReviews() {
+        const reviewsList = document.getElementById('reviewsList');
+        const button = document.querySelector('.btn-view-more');
+        const viewMoreText = button.querySelector('.view-more-text');
+        const viewLessText = button.querySelector('.view-less-text');
+        
+        // Get all hidden reviews
+        const hiddenReviews = reviewsList.querySelectorAll('[style*="display: none"]');
+        
+        if (hiddenReviews.length > 0) {
+            // Show all hidden reviews
+            hiddenReviews.forEach(review => {
+                review.style.display = 'block';
+            });
+            viewMoreText.style.display = 'none';
+            viewLessText.style.display = 'inline';
+        } else {
+            // Hide reviews after the 3rd one
+            const allReviews = reviewsList.querySelectorAll('.review-item');
+            for (let i = 3; i < allReviews.length; i++) {
+                allReviews[i].style.display = 'none';
+            }
+            viewMoreText.style.display = 'inline';
+            viewLessText.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}

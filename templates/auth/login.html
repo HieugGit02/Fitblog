@@ -68,6 +68,46 @@
     box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
 }
 
+/* Password Field Container */
+.password-field-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-field-wrapper input[type="password"],
+.password-field-wrapper input[type="text"] {
+    flex: 1;
+    padding-right: 40px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 4px 8px;
+    color: #666;
+    transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.password-toggle-btn:hover {
+    color: #4CAF50;
+}
+
+.password-toggle-btn.show::after {
+    content: '👁️';
+}
+
+.password-toggle-btn.hide::after {
+    content: '🙈';
+}
+
 .form-group ul {
     list-style: none;
     padding: 0;
@@ -192,7 +232,10 @@
             <!-- Password Field -->
             <div class="form-group">
                 {{ form.password.label_tag }}
-                {{ form.password }}
+                <div class="password-field-wrapper">
+                    {{ form.password }}
+                    <button type="button" class="password-toggle-btn show" id="passwordToggle" aria-label="Toggle password visibility"></button>
+                </div>
                 {% if form.password.errors %}
                     <ul>
                         {% for error in form.password.errors %}
@@ -221,4 +264,35 @@
         </p>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const passwordInput = document.querySelector('input[name="password"]');
+    const toggleBtn = document.getElementById('passwordToggle');
+    
+    if (!passwordInput || !toggleBtn) return;
+    
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const isPassword = passwordInput.type === 'password';
+        
+        if (isPassword) {
+            // Show password
+            passwordInput.type = 'text';
+            toggleBtn.classList.remove('show');
+            toggleBtn.classList.add('hide');
+            toggleBtn.setAttribute('aria-label', 'Hide password');
+        } else {
+            // Hide password
+            passwordInput.type = 'password';
+            toggleBtn.classList.remove('hide');
+            toggleBtn.classList.add('show');
+            toggleBtn.setAttribute('aria-label', 'Show password');
+        }
+    });
+});
+</script>
 {% endblock %}

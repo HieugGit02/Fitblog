@@ -631,6 +631,7 @@ class RecommendationLog(models.Model):
     """
     
     RECOMMENDATION_TYPE_CHOICES = [
+        ('personalized', 'Personalized (by user profile)'),
         ('content-based', 'Content-based (product similarity)'),
         ('goal-based', 'Goal-based (by user goal)'),
         ('collaborative', 'Collaborative (similar users)'),
