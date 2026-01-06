@@ -33,7 +33,7 @@ class PostListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.annotate(post_count=Count('posts'))
+        context['categories'] = Category.objects.exclude(slug='').annotate(post_count=Count('posts'))
         context['featured_posts'] = Post.objects.filter(
             status='published'
         ).order_by('-views')[:3]
@@ -68,7 +68,7 @@ class PostDetailView(DetailView):
             status='published'
         ).exclude(id=post.id)[:3]
         
-        context['categories'] = Category.objects.annotate(post_count=Count('posts'))
+        context['categories'] = Category.objects.exclude(slug='').annotate(post_count=Count('posts'))
         
         return context
 
@@ -108,7 +108,7 @@ class CategoryDetailView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.annotate(post_count=Count('posts'))
+        context['categories'] = Category.objects.exclude(slug='').annotate(post_count=Count('posts'))
         context['current_category'] = get_object_or_404(Category, slug=self.kwargs.get('slug'))
         return context
 
@@ -120,7 +120,7 @@ class CategoriesView(View):
 
     def get(self, request):
         # Get all categories with post count
-        categories = Category.objects.annotate(
+        categories = Category.objects.exclude(slug='').annotate(
             post_count=Count('posts')
         ).filter(post_count__gt=0).order_by('name')
         
@@ -148,7 +148,7 @@ class HomeView(View):
     template_name = 'blog/home.html'
 
     def get(self, request):
-        categories = Category.objects.annotate(post_count=Count('posts'))
+        categories = Category.objects.exclude(slug='').annotate(post_count=Count('posts'))
         featured_posts = Post.objects.filter(status='published').order_by('-views')[:6]
         latest_posts = Post.objects.filter(status='published').order_by('-published_at')[:3]
         

@@ -553,6 +553,37 @@
     margin-bottom: 0.8rem;
 }
 
+/* ===== Reviews Actions ===== */
+.reviews-actions {
+    text-align: center;
+    margin: 2rem 0;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.btn-view-more {
+    background: linear-gradient(135deg, #A5D6A7 0%, #FFAB91 100%);
+    color: white;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(165, 214, 167, 0.2);
+}
+
+.btn-view-more:hover {
+    box-shadow: 0 6px 16px rgba(165, 214, 167, 0.35);
+    transform: translateY(-2px);
+}
+
+.btn-view-more:active {
+    transform: translateY(0);
+}
+
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 1024px) {
     .product-detail-wrapper {

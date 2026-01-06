@@ -789,15 +789,19 @@
     <aside class="post-sidebar">
         <div class="sidebar-item">
             <h4>📂 DANH MỤC</h4>
+            {% if post.category.slug %}
             <a href="{{ post.category.get_absolute_url }}" style="color: #7fc0d9; text-decoration: none;">
                 {{ post.category.icon }} {{ post.category.name }}
             </a>
+            {% else %}
+            <span style="color: #7fc0d9;">{{ post.category.icon }} {{ post.category.name }}</span>
+            {% endif %}
         </div>
 
         <div class="sidebar-item">
             <h4>🏷️ DANH MỤC KHÁC</h4>
             {% for category in categories %}
-            {% if category.id != post.category.id %}
+            {% if category.id != post.category.id and category.slug %}
             <div style="margin-bottom: 8px;">
                 <a href="{{ category.get_absolute_url }}" style="color: #7fc0d9; text-decoration: none;">
                     {{ category.icon }} {{ category.name }} ({{ category.post_count }})

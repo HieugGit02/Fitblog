@@ -9,6 +9,7 @@ from django.db.models import Q, Avg, Count
 from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from .models import Product, ProductCategory, ProductReview, UserProfile, RecommendationLog
 from .serializers import (
     ProductSerializer, ProductDetailSerializer, ProductCategorySerializer,
@@ -529,15 +530,28 @@ def user_profile_view(request):
         recommendation_type__in=['personalized', 'goal-based']
     ).order_by('-created_at')[:6]
     
-    # Lấy tất cả logs
-    all_logs = RecommendationLog.objects.filter(
+    # Lấy tất cả logs cho "Lịch Sử Xem" với phân trang
+    all_logs_queryset = RecommendationLog.objects.filter(
         user_profile=user_profile
-    ).order_by('-created_at')[:20]
+    ).order_by('-created_at')
+    
+    # Phân trang: 5 sản phẩm/trang
+    paginator = Paginator(all_logs_queryset, 5)
+    page_number = request.GET.get('page', 1)
+    
+    try:
+        all_logs = paginator.page(page_number)
+    except PageNotAnInteger:
+        all_logs = paginator.page(1)
+    except EmptyPage:
+        all_logs = paginator.page(paginator.num_pages)
     
     context = {
         'user_profile': user_profile,
         'personalized_products': personalized_products,
         'all_logs': all_logs,
+        'page_obj': all_logs,
+        'paginator': paginator,
         'bmi_status': get_bmi_status(user_profile.bmi) if user_profile.bmi else None,
         'tdee_info': get_tdee_info(user_profile.tdee) if user_profile.tdee else None,
         'has_profile_filled': bool(user_profile.goal and user_profile.goal != 'general-health'),
@@ -782,6 +796,9 @@ def product_list(request):
     valid_sorts = ['price', '-price', 'avg_rating', '-avg_rating', '-created_at', 'created_at']
     if sort_by in valid_sorts:
         products = products.order_by(sort_by)
+    else:
+        # Default sort if invalid
+        products = products.order_by('-created_at')
     
     # Pagination
     paginator = Paginator(products, 8)  # 8 products per page
@@ -842,6 +859,7 @@ def product_list(request):
         'selected_category': category_slug,
         'selected_supplement': supplement_type,
         'sort_by': sort_by,
+        'is_paginated': page_obj.paginator.num_pages > 1,
     }
     
     # Check if AJAX request (for partial content update)
