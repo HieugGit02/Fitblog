@@ -116,16 +116,18 @@
                         {% endif %}
 
                         <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <a href="{% url 'products:user_profile_setup' %}" class="btn btn-primary btn-sm">
+                        <div class="profile-action-buttons">
+                            <a href="{% url 'products:user_profile_setup' %}" class="btn btn-primary btn-sm btn-edit-profile" style="font-size: 0.85rem; padding: 0.5rem 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                 Chỉnh Sửa Thông Tin
                             </a>
-                            <a href="{% url 'products:user_profile_change_password' %}" class="btn btn-outline-warning btn-sm">
-                                Đổi Mật Khẩu
-                            </a>
-                            <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger btn-sm">
-                                Xóa Tài Khoản
-                            </a>
+                            <div class="profile-secondary-buttons">
+                                <a href="{% url 'products:user_profile_change_password' %}" class="btn btn-outline-warning btn-sm" style="font-size: 0.85rem; padding: 0.5rem 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    Đổi Mật Khẩu
+                                </a>
+                                <a href="{% url 'products:user_profile_delete' %}" class="btn btn-outline-danger btn-sm" style="font-size: 0.85rem; padding: 0.5rem 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    Xóa Tài Khoản
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -171,8 +173,14 @@
                                                     <small class="recommendation-label">
                                                         {% if log.recommendation_type == "personalized" %}
                                                             Phù hợp với mục tiêu
-                                                        {% else %}
+                                                        {% elif log.recommendation_type == "content-based" %}
                                                             Sản phẩm liên quan
+                                                        {% elif log.recommendation_type == "review-action" %}
+                                                            Vừa đánh giá
+                                                        {% elif log.recommendation_type == "goal-based" %}
+                                                            Theo mục tiêu
+                                                        {% else %}
+                                                            Sản phẩm gợi ý
                                                         {% endif %}
                                                     </small>
                                                 </div>
@@ -225,8 +233,12 @@
                                                     <span class="badge bg-primary">Phù Hợp</span>
                                                 {% elif log.recommendation_type == "content-based" %}
                                                     <span class="badge bg-secondary">Liên Quan</span>
+                                                {% elif log.recommendation_type == "review-action" %}
+                                                    <span class="badge bg-warning">Đánh Giá</span>
+                                                {% elif log.recommendation_type == "goal-based" %}
+                                                    <span class="badge bg-info">Theo Mục Tiêu</span>
                                                 {% else %}
-                                                    <span class="badge bg-info">{{ log.recommendation_type }}</span>
+                                                    <span class="badge bg-light text-dark">{{ log.recommendation_type }}</span>
                                                 {% endif %}
                                             </td>
                                             <td>
@@ -778,16 +790,32 @@
     }
 </style>
 
-<!-- JavaScript -->
 <script>
 function scrollRecommendations(direction) {
     const container = document.querySelector('.recommendations-container');
-    const scrollAmount = 232;
+    const cards = document.querySelectorAll('.recommendation-card');
+    const cardWidth = 232; // Card width + gap
+    const scrollAmount = cardWidth;
+    const tolerance = 5; // Cho phép sai số 5px
+    
+    // Get current scroll position
+    const currentScroll = container.scrollLeft;
+    const maxScroll = container.scrollWidth - container.clientWidth;
     
     if (direction === 'left') {
-        container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        // If at the beginning (hoặc rất gần đầu), scroll to end
+        if (currentScroll <= tolerance) {
+            container.scrollLeft = maxScroll;
+        } else {
+            container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+        }
     } else {
-        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        // If at the end (hoặc rất gần cuối), scroll to beginning
+        if (currentScroll >= maxScroll - tolerance) {
+            container.scrollLeft = 0;
+        } else {
+            container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+        }
     }
 }
 

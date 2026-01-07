@@ -562,12 +562,11 @@ def user_profile_view(request):
 
 def user_profile_delete(request):
     """
-    Xóa hồ sơ người dùng
+    Hiển thị 2 tùy chọn xóa:
+    1. Reset profile (giữ account)
+    2. Xóa account vĩnh viễn
     
     ONLY FOR AUTHENTICATED USERS!
-    
-    GET: Hiển thị confirmation dialog
-    POST: Xóa profile + recommendation logs
     
     URL: /products/profile/delete/
     Template: products/user_profile_delete.html
@@ -584,33 +583,60 @@ def user_profile_delete(request):
         messages.error(request, 'Không tìm thấy hồ sơ')
         return redirect('products:product_list')
     
-    if request.method == 'POST':
-        # Xóa toàn bộ recommendation logs
-        RecommendationLog.objects.filter(user_profile=user_profile).delete()
-        
-        # Reset profile data (keep profile linked to user)
-        user_profile.age = None
-        user_profile.weight_kg = None
-        user_profile.height_cm = None
-        user_profile.gender = None
-        user_profile.bmi = None
-        user_profile.tdee = None
-        user_profile.goal = 'general-health'
-        user_profile.activity_level = None
-        user_profile.preferred_supplement_types = ''
-        user_profile.dietary_restrictions = ''
-        user_profile.save()
-        
-        messages.success(request, '✅ Hồ sơ đã được reset. Bạn có thể setup lại!')
-        return redirect('products:product_list')
-    
-    # GET: Show confirmation
+    # GET: Show confirmation page with 2 options
     context = {
         'user_profile': user_profile,
         'recommendation_count': RecommendationLog.objects.filter(user_profile=user_profile).count()
     }
     
     return render(request, 'products/user_profile_delete.html', context)
+
+
+def user_profile_delete_permanent(request):
+    """
+    Xóa tài khoản vĩnh viễn (User + Profile + Logs)
+    
+    ONLY POST + AUTHENTICATED USERS!
+    
+    URL: /products/profile/delete-permanent/
+    """
+    if request.method != 'POST':
+        return redirect('products:user_profile_delete')
+    
+    if not request.user.is_authenticated:
+        messages.error(request, 'Bạn cần đăng nhập')
+        return redirect('products:product_list')
+    
+    # Verify confirmation text
+    confirm_text = request.POST.get('confirm_text', '').strip()
+    if confirm_text != 'XÓA TÀI KHOẢN':
+        messages.error(request, '❌ Vui lòng nhập chính xác: "XÓA TÀI KHOẢN"')
+        return redirect('products:user_profile_delete')
+    
+    try:
+        user = request.user
+        user_id = user.id
+        username = user.username
+        
+        # Log deletion
+        logger.warning(f"🗑️ Deleting account permanently: {username} (ID: {user_id})")
+        
+        # Delete UserProfile (cascade will delete RecommendationLogs)
+        UserProfile.objects.filter(user=user).delete()
+        
+        # Delete User account
+        user.delete()
+        
+        logger.info(f"✅ Account deleted permanently: {username}")
+        
+        # Redirect and show message
+        messages.success(request, '✅ Tài khoản của bạn đã được xóa vĩnh viễn.')
+        return redirect('products:product_list')
+        
+    except Exception as e:
+        logger.error(f"❌ Error deleting account: {str(e)}")
+        messages.error(request, f'❌ Lỗi: {str(e)}')
+        return redirect('products:user_profile_delete')
 
 
 def user_profile_reset(request):
@@ -893,21 +919,122 @@ def product_detail(request, slug):
     
     # Handle review submission
     message = None
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if request.method == 'POST':
         try:
-            review = ProductReview.objects.create(
-                product=product,
-                author_name=request.POST.get('author_name'),
-                author_email=request.POST.get('author_email'),
-                rating=int(request.POST.get('rating')),
-                title=request.POST.get('title'),
-                content=request.POST.get('content'),
-                is_verified_purchase=request.POST.get('is_verified_purchase') == 'on',
-                is_approved=False,  # Cần admin phê duyệt
-            )
-            message = 'Cảm ơn! Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.'
+            # 🆕 Handle both form-data and JSON requests
+            if is_ajax:
+                import json
+                data = json.loads(request.body)
+                author_name = data.get('author_name', '')
+                author_email = data.get('author_email', '')
+                rating = int(data.get('rating', 3))
+                title = data.get('title', '')
+                content = data.get('content', '')
+                is_verified = data.get('is_verified_purchase') == 'on'
+            else:
+                author_name = request.POST.get('author_name', '')
+                author_email = request.POST.get('author_email', '')
+                rating = int(request.POST.get('rating', 3))
+                title = request.POST.get('title', '')
+                content = request.POST.get('content', '')
+                is_verified = request.POST.get('is_verified_purchase') == 'on'
+            
+            # 🆕 AUTO-LINK USER if authenticated
+            user = None
+            
+            if request.user.is_authenticated:
+                user = request.user
+                # Override với user info
+                author_name = request.user.get_full_name() or request.user.username
+                author_email = request.user.email
+                logger.info(f"✅ Review by authenticated user: {user.username}")
+            else:
+                logger.info(f"📝 Review by anonymous: {author_name}")
+            
+            # Create or Update review
+            # 🆕 Use get_or_create to handle duplicate reviews (user reviewing same product twice)
+            defaults = {
+                'author_name': author_name,
+                'author_email': author_email,
+                'rating': rating,
+                'title': title,
+                'content': content,
+                'is_verified_purchase': is_verified,
+                'is_approved': False,
+            }
+            
+            if user:
+                # Authenticated user: use get_or_create
+                review, created = ProductReview.objects.get_or_create(
+                    user=user,
+                    product=product,
+                    defaults=defaults
+                )
+                
+                if not created:
+                    # Update existing review
+                    logger.info(f"🔄 Updating existing review by {user.username}")
+                    review.rating = defaults['rating']
+                    review.title = defaults['title']
+                    review.content = defaults['content']
+                    review.is_verified_purchase = defaults['is_verified_purchase']
+                    review.save()
+                    message = '✅ Review của bạn đã được cập nhật. Admin sẽ kiểm duyệt lại.'
+                else:
+                    # New review
+                    logger.info(f"✅ Review by authenticated user: {user.username}")
+                    message = '✅ Cảm ơn! Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.'
+            else:
+                # Anonymous user: always create new (no unique constraint)
+                review = ProductReview.objects.create(
+                    user=None,
+                    product=product,
+                    **defaults
+                )
+                logger.info(f"📝 Review by anonymous: {author_name}")
+                message = '✅ Cảm ơn! Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.'
+            
+            # 🆕 Create or Update RecommendationLog để track cho collab filtering
+            if user:
+                try:
+                    # Get or create UserProfile (in case user doesn't have one)
+                    user_profile, _ = UserProfile.objects.get_or_create(user=user)
+                    rating_score = rating / 5.0  # 1-5 → 0-1
+                    
+                    rec_log, rec_created = RecommendationLog.objects.get_or_create(
+                        user_profile=user_profile,
+                        recommended_product=product,
+                        recommendation_type='review-action',
+                        defaults={
+                            'score': rating_score,
+                            'clicked': True
+                        }
+                    )
+                    
+                    if not rec_created:
+                        # Update existing log
+                        rec_log.score = rating_score
+                        rec_log.save()
+                        logger.info(f"🔄 RecommendationLog updated for {user.username} rating={rating_score:.2f}")
+                    else:
+                        logger.info(f"📊 RecommendationLog created for {user.username} rating={rating_score:.2f}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error with RecommendationLog: {str(e)}")
+            
+            # 🆕 Return JSON response for AJAX requests
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': message})
+            # Message was already set in the if/else blocks above
         except Exception as e:
-            message = f'Lỗi: {str(e)}'
+            logger.error(f"❌ Error creating review: {str(e)}")
+            message = f'❌ Lỗi: {str(e)}'
+            
+            # Return JSON error for AJAX requests
+            if is_ajax:
+                return JsonResponse({'success': False, 'message': message}, status=400)
     
     # Get approved reviews
     reviews = product.reviews.filter(is_approved=True).order_by('-created_at')
@@ -951,8 +1078,8 @@ def product_detail(request, slug):
             log, created = RecommendationLog.objects.get_or_create(
                 user_profile=user_profile,
                 recommended_product=product,
+                recommendation_type='personalized',  # 🔑 Add to lookup
                 defaults={
-                    'recommendation_type': 'personalized',
                     'score': 0.95,
                     'clicked': True,  # Mark as clicked when user views product detail
                 }
@@ -966,8 +1093,8 @@ def product_detail(request, slug):
             log, created = RecommendationLog.objects.get_or_create(
                 user_profile=user_profile,
                 recommended_product=product,
+                recommendation_type='content-based',  # 🔑 Add to lookup
                 defaults={
-                    'recommendation_type': 'content-based',
                     'score': 0.5,
                     'clicked': True,  # Mark as clicked when user views product detail
                 }
@@ -983,8 +1110,8 @@ def product_detail(request, slug):
                 log, created = RecommendationLog.objects.get_or_create(
                     user_profile=user_profile,
                     recommended_product=rec_product,
+                    recommendation_type='personalized',  # 🔑 Add to lookup
                     defaults={
-                        'recommendation_type': 'personalized',
                         'score': 0.95,
                     }
                 )

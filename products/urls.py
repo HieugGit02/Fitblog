@@ -39,6 +39,7 @@ urlpatterns = auth_patterns + [
     path('products/quick-setup/', views.user_profile_quick_setup, name='user_profile_quick_setup'),
     path('products/profile/', views.user_profile_view, name='user_profile_view'),
     path('products/profile/delete/', views.user_profile_delete, name='user_profile_delete'),
+    path('products/profile/delete-permanent/', views.user_profile_delete_permanent, name='user_profile_delete_permanent'),
     path('products/profile/reset/', views.user_profile_reset, name='user_profile_reset'),
     path('products/profile/change-password/', views.user_profile_change_password, name='user_profile_change_password'),
     

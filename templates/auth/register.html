@@ -139,6 +139,38 @@
     margin-top: 4px;
 }
 
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding-right: 40px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-size: 18px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+    color: #4CAF50;
+}
+
 @media (max-width: 600px) {
     .auth-card {
         padding: 20px;
@@ -222,7 +254,12 @@
             <!-- Password Field -->
             <div class="form-group">
                 {{ form.password1.label_tag }}
-                {{ form.password1 }}
+                <div class="password-input-wrapper">
+                    {{ form.password1 }}
+                    <button type="button" class="password-toggle-btn" data-target="id_password1">
+                        <span class="icon">👁️</span>
+                    </button>
+                </div>
                 {% if form.password1.errors %}
                     <ul>
                         {% for error in form.password1.errors %}
@@ -236,7 +273,12 @@
             <!-- Confirm Password Field -->
             <div class="form-group">
                 {{ form.password2.label_tag }}
-                {{ form.password2 }}
+                <div class="password-input-wrapper">
+                    {{ form.password2 }}
+                    <button type="button" class="password-toggle-btn" data-target="id_password2">
+                        <span class="icon">👁️</span>
+                    </button>
+                </div>
                 {% if form.password2.errors %}
                     <ul>
                         {% for error in form.password2.errors %}
@@ -255,4 +297,23 @@
         </p>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('.password-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.dataset.target;
+        const input = document.getElementById(targetId);
+        const icon = this.querySelector('.icon');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            icon.textContent = '👁️';
+        }
+    });
+});
+</script>
 {% endblock %}

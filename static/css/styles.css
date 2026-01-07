@@ -159,18 +159,18 @@ header h1 {
     #main-nav.open {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0;
         position: fixed;
         right: 0;
         top: 68px;
         height: auto;
         max-height: calc(100vh - 100px);
-        width: 200px;
+        width: 260px;
         transform: translateX(0);
         background: var(--color-white);
-        padding: 0.75rem;
-        border-radius: 8px 0 8px 8px;
-        box-shadow: -8px 8px 24px rgba(0,0,0,0.1);
+        padding: 0;
+        border-radius: 0 0 0 8px;
+        box-shadow: -4px 4px 16px rgba(0,0,0,0.12);
         z-index: 11999;
         transition: transform 0.32s cubic-bezier(.2,.8,.2,1);
         overflow-y: auto;
@@ -353,18 +353,23 @@ nav {
     .search-box input { flex:1; padding:10px 12px; border-radius:999px; border:1px solid var(--color-gray-light); }
 
     #main-nav.open a {
-        padding: 0.6rem 1rem;
+        padding: 1rem 1.2rem;
         font-size: 0.95rem;
-        border-radius: 20px;
+        border-radius: 0;
         border: none;
         color: #333333;
-        font-weight: 600;
+        font-weight: 500;
+        display: block;
+        width: 100%;
+        text-align: left;
+        border-bottom: 1px solid #f0f0f0;
+        transition: all 0.2s ease;
     }
 
     #main-nav.open a:hover {
         background-color: #f5f5f5;
         border: none;
-        color: #333333;
+        color: #2E7D32;
         font-weight: 600;
     }
 
@@ -372,14 +377,15 @@ nav {
         background: transparent;
         color: #333333;
         border: none;
-        font-weight: 700;
-        border-radius: 20px;
+        font-weight: 600;
+        border-radius: 0;
+        border-bottom: 1px solid #f0f0f0;
     }
 
     #main-nav.open a.nav-products:hover {
         background: #f5f5f5;
         border: none;
-        color: #333333;
+        color: #2E7D32;
         font-weight: 600;
     }nav a:hover, nav button:hover {
     color: var(--color-primary-dark);
@@ -768,3 +774,99 @@ footer p {
 
 .opacity-50 { opacity: 0.5; }
 .opacity-75 { opacity: 0.75; }
+
+/* ===== RESPONSIVE PROFILE CARD ===== */
+/* Profile action buttons layout */
+.profile-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+.profile-secondary-buttons {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+/* Desktop: 2 buttons side by side (Đổi Mật Khẩu + Xóa) */
+@media (min-width: 992px) {
+    .profile-action-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .profile-secondary-buttons {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    
+    .btn-edit-profile {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    /* User profile info card responsive */
+    .card {
+        margin: 0 -0.5rem;
+    }
+    
+    /* Profile card buttons - stack and shrink on mobile */
+    .d-grid a.btn {
+        font-size: 0.8rem !important;
+        padding: 0.4rem 0.6rem !important;
+    }
+    
+    /* Profile info - reduce font sizes */
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    .card-body h5 {
+        font-size: 0.95rem !important;
+    }
+    
+    .card-body small {
+        font-size: 0.75rem !important;
+    }
+    
+    .card-body p {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    /* Extra small devices */
+    .card {
+        margin: 0 -1rem;
+        border-radius: 0 !important;
+    }
+    
+    .card-body {
+        padding: 0.75rem !important;
+    }
+    
+    .d-grid a.btn {
+        font-size: 0.75rem !important;
+        padding: 0.35rem 0.5rem !important;
+    }
+    
+    .card-body h5 {
+        font-size: 0.9rem !important;
+    }
+    
+    .card-body small {
+        font-size: 0.7rem !important;
+    }
+    
+    .card-body p {
+        font-size: 0.85rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+    
+    /* Info boxes responsive */
+    .mb-2, .mb-3 {
+        margin-bottom: 0.5rem !important;
+    }
+}
