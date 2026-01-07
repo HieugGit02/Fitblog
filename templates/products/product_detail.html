@@ -259,17 +259,50 @@
         <!-- Review Form -->
         <div class="description-section" style="margin-top: 2rem;">
             <h3>Để Lại Đánh Giá</h3>
-            <form method="post" class="mt-3">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label class="form-label">Tên của bạn</label>
-                    <input type="text" class="form-control" name="author_name" required>
+            
+            <!-- 🆕 Alert: Show authentication status -->
+            {% if user.is_authenticated %}
+            <div class="alert alert-success mb-3" style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+                <div>
+                    <strong>✅ Đang đăng nhập:</strong> <span style="color: var(--primary-color);">{{ user.username }}</span>
+                    <small style="display: block; margin-top: 5px;">Review của bạn sẽ được ghi nhận để cải thiện gợi ý sản phẩm</small>
                 </div>
+            </div>
+            {% else %}
+            <div class="alert alert-warning mb-3" style="display: flex; align-items: center; gap: 10px;">
+                <i class="fas fa-info-circle" style="font-size: 1.2rem;"></i>
+                <div>
+                    <strong>💡</strong> Hãy <a href="{% url 'products:login' %}"><strong>đăng nhập</strong></a> để hệ thống gợi ý sản phẩm cá nhân!
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 🆕 Alert box for AJAX messages -->
+            <div id="reviewMessage" style="display: none; margin-bottom: 1rem;"></div>
 
-                <div class="mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" class="form-control" name="author_email" required>
-                </div>
+            <form id="reviewForm" class="mt-3">
+                {% csrf_token %}
+                
+                <!-- 🆕 Conditional: Tên & Email (ẩn nếu authenticated) -->
+                {% if not user.is_authenticated %}
+                    <div class="mb-3">
+                        <label class="form-label">Tên của bạn</label>
+                        <input type="text" class="form-control" name="author_name" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="author_email" required>
+                    </div>
+                {% else %}
+                    <!-- 🆕 Hidden fields (auto-filled từ user) -->
+                    <input type="hidden" name="author_name" value="{{ user.get_full_name|default:user.username }}">
+                    <input type="hidden" name="author_email" value="{{ user.email }}">
+                    <div class="alert alert-info mb-3">
+                        <small>📝 Tên bình luận: <strong>{{ user.get_full_name|default:user.username }}</strong></small>
+                    </div>
+                {% endif %}
 
                 <div class="mb-3">
                     <label class="form-label">Đánh giá</label>
@@ -300,9 +333,89 @@
                     </label>
                 </div>
 
-                <button type="submit" class="btn-action btn-primary-action">Gửi Đánh Giá</button>
+                <button type="submit" class="btn-action btn-primary-action" id="submitReviewBtn">Gửi Đánh Giá</button>
             </form>
         </div>
+
+        <script>
+        // 🆕 AJAX Review Submission
+        document.getElementById('reviewForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('submitReviewBtn');
+            const msgBox = document.getElementById('reviewMessage');
+            
+            // Disable button
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+            msgBox.style.display = 'none';
+            
+            try {
+                const formData = new FormData(this);
+                const csrfToken = formData.get('csrfmiddlewaretoken');
+                
+                // Prepare form data
+                const data = {
+                    author_name: formData.get('author_name'),
+                    author_email: formData.get('author_email'),
+                    rating: formData.get('rating'),
+                    title: formData.get('title'),
+                    content: formData.get('content'),
+                    is_verified_purchase: formData.get('is_verified_purchase') ? 'on' : 'off',
+                };
+                
+                // Send AJAX request
+                const response = await fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Show success message
+                msgBox.innerHTML = `
+                    <div class="alert alert-success d-flex align-items-center" style="gap: 10px;">
+                        <i class="fas fa-check-circle" style="font-size: 1.2rem;"></i>
+                        <div>
+                            <strong>✅ Thành công!</strong>
+                            <small style="display: block; margin-top: 3px;">Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.</small>
+                        </div>
+                    </div>
+                `;
+                msgBox.style.display = 'block';
+                
+                // Reset form
+                document.getElementById('reviewForm').reset();
+                
+                // Scroll to message
+                msgBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                
+            } catch (error) {
+                // Show error message
+                msgBox.innerHTML = `
+                    <div class="alert alert-danger d-flex align-items-center" style="gap: 10px;">
+                        <i class="fas fa-times-circle" style="font-size: 1.2rem;"></i>
+                        <div>
+                            <strong>❌ Lỗi!</strong>
+                            <small style="display: block; margin-top: 3px;">${error.message}</small>
+                        </div>
+                    </div>
+                `;
+                msgBox.style.display = 'block';
+            } finally {
+                // Re-enable button
+                btn.disabled = false;
+                btn.textContent = 'Gửi Đánh Giá';
+            }
+        });
+        </script>
 
         <!-- Recommendations Section -->
         {% if recommendations %}

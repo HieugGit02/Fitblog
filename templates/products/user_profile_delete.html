@@ -1,148 +1,90 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Xóa Hồ Sơ - Fitblog{% endblock %}
+{% block title %}Xóa Tài Khoản - Fitblog{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-6">
-            <!-- Header -->
-            <div class="mb-5 text-center">
-                <h1 class="display-6 fw-bold mb-2" style="color: #dc3545;">Xóa Hồ Sơ Vĩnh Viễn</h1>
-                <p class="text-muted">Hành động này không thể được hoàn tác</p>
+<div class="container" style="max-width: 600px; margin: 60px auto; padding: 0 20px;">
+    <!-- Header -->
+    <div style="margin-bottom: 40px;">
+        <h1 style="font-size: 2rem; font-weight: 700; color: #1a1a1a; margin-bottom: 8px;">
+            Xóa Tài Khoản
+        </h1>
+        <p style="font-size: 1rem; color: #666; margin: 0;">
+            Hành động này không thể được hoàn tác. Vui lòng đọc kỹ trước khi tiếp tục.
+        </p>
+    </div>
+
+    <!-- Warning Box -->
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 16px; border-radius: 4px; margin-bottom: 32px;">
+        <p style="margin: 0; color: #333; font-weight: 500;">
+            ⚠️ Xóa tài khoản sẽ xóa vĩnh viễn:
+        </p>
+        <ul style="margin: 12px 0 0 0; padding-left: 20px; color: #555; font-size: 0.95rem;">
+            <li>Tài khoản & Email</li>
+            <li>Hồ sơ cá nhân</li>
+            <li>Tất cả đánh giá & bình luận</li>
+            <li>Lịch sử gợi ý cá nhân</li>
+            <li>Tất cả dữ liệu liên quan</li>
+        </ul>
+    </div>
+
+    <!-- Delete Form -->
+    <form method="post" action="{% url 'products:user_profile_delete_permanent' %}" id="deleteForm">
+        {% csrf_token %}
+        
+        <!-- Confirmation Input -->
+        <div style="margin-bottom: 24px;">
+            <label style="display: block; font-size: 0.95rem; font-weight: 600; color: #1a1a1a; margin-bottom: 8px;">
+                Để xác nhận xóa, nhập đoạn text dưới đây:
+            </label>
+            <div style="background: #f5f5f5; padding: 10px 12px; border-radius: 4px; margin-bottom: 8px; font-family: 'Courier New', monospace; color: #1a1a1a; font-weight: 600; font-size: 0.95rem;">
+                XÓA TÀI KHOẢN
             </div>
-
-            <!-- Main Card -->
-            <div class="card border-0 shadow-sm mb-4">
-                <div class="card-body p-4">
-                    <!-- Warning Section -->
-                    <div class="mb-4">
-                        <h6 class="fw-bold mb-3" style="color: #dc3545; font-size: 0.85rem; letter-spacing: 0.5px;">CẢNH BÁO</h6>
-                        <div style="background: #fee; border-left: 3px solid #dc3545; padding: 12px; border-radius: 4px;">
-                            <p style="font-size: 0.9rem; margin: 0; color: #333;">Bạn sắp xóa hồ sơ cá nhân và toàn bộ dữ liệu liên quan:</p>
-                            <ul style="font-size: 0.9rem; margin: 8px 0 0 0; padding-left: 20px;">
-                                <li><strong>Session ID:</strong> {{ user_profile.session_id|truncatechars:25 }}</li>
-                                <li><strong>Tuổi:</strong> {{ user_profile.age }} tuổi</li>
-                                <li><strong>Cân nặng:</strong> {{ user_profile.weight_kg|floatformat:1 }} kg</li>
-                                <li><strong>Chiều cao:</strong> {{ user_profile.height_cm|floatformat:1 }} cm</li>
-                                <li><strong>Mục tiêu:</strong> {{ user_profile.get_goal_display }}</li>
-                                <li><strong>Lịch sử gợi ý:</strong> {{ recommendation_count }} records</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <!-- Info Section -->
-                    <div class="mb-4">
-                        <h6 class="fw-bold mb-3" style="color: #666; font-size: 0.85rem; letter-spacing: 0.5px;">ĐIỀU SẼ XẢY RA</h6>
-                        <div class="list-unstyled">
-                            <div class="d-flex gap-3 mb-3">
-                                <div style="min-width: 24px;">
-                                    <span style="display: inline-block; width: 24px; height: 24px; background: #fee; border-radius: 4px; text-align: center; line-height: 24px; color: #dc3545; font-size: 0.8rem; font-weight: bold;">×</span>
-                                </div>
-                                <div style="font-size: 0.9rem;">
-                                    <p class="mb-0"><strong>Session được xóa</strong></p>
-                                    <small class="text-muted">Browser cookie của bạn sẽ bị xóa</small>
-                                </div>
-                            </div>
-                            <div class="d-flex gap-3 mb-3">
-                                <div style="min-width: 24px;">
-                                    <span style="display: inline-block; width: 24px; height: 24px; background: #fee; border-radius: 4px; text-align: center; line-height: 24px; color: #dc3545; font-size: 0.8rem; font-weight: bold;">×</span>
-                                </div>
-                                <div style="font-size: 0.9rem;">
-                                    <p class="mb-0"><strong>Lịch sử bị xóa</strong></p>
-                                    <small class="text-muted">Tất cả thông tin và lịch sử sẽ bị xóa vĩnh viễn</small>
-                                </div>
-                            </div>
-                            <div class="d-flex gap-3">
-                                <div style="min-width: 24px;">
-                                    <span style="display: inline-block; width: 24px; height: 24px; background: #fee; border-radius: 4px; text-align: center; line-height: 24px; color: #dc3545; font-size: 0.8rem; font-weight: bold;">×</span>
-                                </div>
-                                <div style="font-size: 0.9rem;">
-                                    <p class="mb-0"><strong>Session mới được tạo</strong></p>
-                                    <small class="text-muted">Lần truy cập tiếp theo sẽ tạo phiên mới và hồ sơ mới</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Form -->
-                    <form method="post" novalidate id="deleteForm">
-                        {% csrf_token %}
-                        
-                        <!-- Confirmation Text Input -->
-                        <div class="mb-4">
-                            <label for="confirm_text" class="form-label fw-bold" style="font-size: 0.9rem;">
-                                Để xóa, vui lòng nhập:
-                            </label>
-                            <div style="background: #f5f5f5; padding: 8px 12px; border-radius: 4px; margin-bottom: 8px; font-family: monospace; color: #333;">
-                                XÓA HỒ SƠ
-                            </div>
-                            <input 
-                                type="text" 
-                                id="confirm_text"
-                                name="confirm_text"
-                                class="form-control"
-                                placeholder="Gõ chính xác: XÓA HỒ SƠ"
-                                style="font-size: 1rem; padding: 10px 12px;"
-                                required
-                            >
-                            <small class="text-muted d-block mt-2">
-                                Điều này để tránh xóa vô tình. Phải trùng khớp hoàn toàn.
-                            </small>
-                        </div>
-
-                        <!-- Buttons -->
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-danger btn-lg" style="background-color: #dc3545; border: none;">
-                                Xóa Hồ Sơ Vĩnh Viễn
-                            </button>
-                            <a href="{% url 'products:user_profile_view' %}" class="btn btn-outline-secondary btn-lg">
-                                Hủy
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Alternative Action -->
-            <div class="text-center">
-                <p class="text-muted mb-2" style="font-size: 0.9rem;">Không muốn xóa hoàn toàn?</p>
-                <a href="{% url 'products:user_profile_reset' %}" class="btn btn-outline-warning btn-sm">
-                    Reset Hồ Sơ
-                </a>
-            </div>
+            <input 
+                type="text" 
+                id="confirm_text"
+                name="confirm_text"
+                class="form-control"
+                placeholder="Gõ chính xác"
+                style="font-size: 1rem; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px;"
+                required
+            >
         </div>
+
+        <!-- Delete Button -->
+        <button type="submit" class="btn btn-danger" style="width: 100%; padding: 12px; font-size: 1rem; font-weight: 500; background-color: #dc3545; border: none; border-radius: 4px; color: white; cursor: pointer;">
+            Xóa Tài Khoản Vĩnh Viễn
+        </button>
+    </form>
+
+    <!-- Back Button -->
+    <div style="text-align: center; margin-top: 24px;">
+        <a href="{% url 'products:user_profile_view' %}" style="display: inline-block; padding: 10px 20px; color: #666; text-decoration: none; font-weight: 500; border: 1px solid #ddd; border-radius: 4px; transition: all 0.2s;">
+            Quay Lại
+        </a>
     </div>
 </div>
 
 <!-- CSS -->
 <style>
-    .btn-danger {
-        transition: none;
-    }
-
-    .btn-danger:hover {
-        background-color: #c82333 !important;
-        transform: none;
-    }
-
-    .card {
-        transition: none;
-    }
-
-    .card:hover {
-        transform: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-    }
-
     .form-control {
-        transition: none;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        transition: border-color 0.2s;
     }
 
     .form-control:focus {
         border-color: #dc3545;
-        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+        box-shadow: none;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333 !important;
+    }
+
+    a:hover {
+        background-color: #f5f5f5;
     }
 </style>
 
@@ -150,9 +92,9 @@
 <script>
 document.getElementById('deleteForm').addEventListener('submit', function(e) {
     const input = document.getElementById('confirm_text').value.trim();
-    if (input !== 'XÓA HỒ SƠ') {
+    if (input !== 'XÓA TÀI KHOẢN') {
         e.preventDefault();
-        alert('Vui lòng nhập chính xác: XÓA HỒ SƠ');
+        alert('❌ Vui lòng nhập chính xác: "XÓA TÀI KHOẢN"');
         return false;
     }
 });
