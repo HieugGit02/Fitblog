@@ -269,6 +269,7 @@ class HybridRecommendationEngine:
         """Initialize"""
         self.collab_engine = CollaborativeFilteringEngine()
     
+    
     def _get_content_based_recommendations(self, user_id, n=10):
         """
         Gợi ý dựa trên nội dung (category, supplement type, goals)
@@ -283,56 +284,111 @@ class HybridRecommendationEngine:
         # TODO: Implement personalized recommendation
         return []
     
+    def _normalize_scores(self, items):
+        """
+        items: [(product_id, score), ...]
+        normalize về [0..1] theo max-score
+        """
+        if not items:
+            return {}
+
+        max_score = max(score for _, score in items)
+        if max_score == 0:
+            max_score = 1.0
+
+        return {pid: score / max_score for pid, score in items}
+    
+    # def recommend(self, user_id, n_recommendations=5):
+    #     """
+    #     Hybrid recommendation
+        
+    #     Kết hợp 3 algorithms với weights khác nhau
+    #     """
+    #     try:
+    #         # 1. Collaborative Filtering (40%)
+    #         collab_items = self.collab_engine.recommend(user_id, n=15)
+    #         collab_products = {product_id: score for product_id, score in collab_items}
+            
+    #         # 2. Content-based (30%)
+    #         content_items = self._get_content_based_recommendations(user_id, n=15)
+    #         content_products = {product_id: score for product_id, score in content_items}
+            
+    #         # 3. Personalized (30%)
+    #         personal_items = self._get_personalized_recommendations(user_id, n=15)
+    #         personal_products = {product_id: score for product_id, score in personal_items}
+            
+    #         # Combine scores
+    #         all_products = set()
+    #         all_products.update(collab_products.keys())
+    #         all_products.update(content_products.keys())
+    #         all_products.update(personal_products.keys())
+            
+    #         hybrid_scores = {}
+    #         for product_id in all_products:
+    #             score = 0
+    #             if product_id in collab_products:
+    #                 score += 0.40 * (collab_products[product_id] / 5.0)  # Normalize
+    #             if product_id in content_products:
+    #                 score += 0.30 * content_products[product_id]
+    #             if product_id in personal_products:
+    #                 score += 0.30 * personal_products[product_id]
+                
+    #             hybrid_scores[product_id] = score
+            
+    #         # Sort & return top N
+    #         ranked = sorted(
+    #             hybrid_scores.items(),
+    #             key=lambda x: x[1],
+    #             reverse=True
+    #         )[:n_recommendations]
+            
+    #         return ranked
+            
+    #     except Exception as e:
+    #         logger.error(f"❌ Hybrid recommendation error: {str(e)}")
+    #         return []
     def recommend(self, user_id, n_recommendations=5):
         """
-        Hybrid recommendation
-        
-        Kết hợp 3 algorithms với weights khác nhau
+        Hybrid recommendation:
+        - Collaborative Filtering (40%)
+        - Content-based (30%)
+        - Personalized (30%)
         """
         try:
-            # 1. Collaborative Filtering (40%)
-            collab_items = self.collab_engine.recommend(user_id, n=15)
-            collab_products = {product_id: score for product_id, score in collab_items}
-            
-            # 2. Content-based (30%)
-            content_items = self._get_content_based_recommendations(user_id, n=15)
-            content_products = {product_id: score for product_id, score in content_items}
-            
-            # 3. Personalized (30%)
-            personal_items = self._get_personalized_recommendations(user_id, n=15)
-            personal_products = {product_id: score for product_id, score in personal_items}
-            
-            # Combine scores
-            all_products = set()
-            all_products.update(collab_products.keys())
-            all_products.update(content_products.keys())
-            all_products.update(personal_products.keys())
-            
+            # 1) Get candidates
+            collab_items = self.collab_engine.recommend(user_id, n=15) or []
+            content_items = self._get_content_based_recommendations(user_id, n=15) or []
+            personal_items = self._get_personalized_recommendations(user_id, n=15) or []
+
+            # 2) Normalize each source to same scale [0..1]
+            collab_products = self._normalize_scores(collab_items)
+            content_products = self._normalize_scores(content_items)
+            personal_products = self._normalize_scores(personal_items)
+
+            # 3) Merge all candidates
+            all_products = set(collab_products) | set(content_products) | set(personal_products)
+
+            # Optional: filter items already seen/bought
+            # seen_products = self._get_seen_products(user_id)
+            # all_products -= seen_products
+
+            # 4) Weighted sum
             hybrid_scores = {}
             for product_id in all_products:
-                score = 0
-                if product_id in collab_products:
-                    score += 0.40 * (collab_products[product_id] / 5.0)  # Normalize
-                if product_id in content_products:
-                    score += 0.30 * content_products[product_id]
-                if product_id in personal_products:
-                    score += 0.30 * personal_products[product_id]
-                
+                score = (
+                    0.40 * collab_products.get(product_id, 0.0)
+                    + 0.30 * content_products.get(product_id, 0.0)
+                    + 0.30 * personal_products.get(product_id, 0.0)
+                )
                 hybrid_scores[product_id] = score
-            
-            # Sort & return top N
-            ranked = sorted(
-                hybrid_scores.items(),
-                key=lambda x: x[1],
-                reverse=True
-            )[:n_recommendations]
-            
-            return ranked
-            
+
+            # 5) Rank & return top N
+            ranked = sorted(hybrid_scores.items(), key=lambda x: x[1], reverse=True)
+            return ranked[:n_recommendations]
+
         except Exception as e:
             logger.error(f"❌ Hybrid recommendation error: {str(e)}")
             return []
-
 
 # Global instances (cache)
 _collab_engine = None
