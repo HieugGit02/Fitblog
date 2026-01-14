@@ -996,13 +996,15 @@ def product_detail(request, slug):
                 logger.info(f"📝 Review by anonymous: {author_name}")
                 message = '✅ Cảm ơn! Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.'
             
-            # 🆕 Create or Update RecommendationLog để track cho collab filtering
+            # 🆕 RecommendationLog: Chỉ authenticated user mới kích hoạt
+            # Anonymous comments KHÔNG tạo recommendation log
             if user:
                 try:
                     # Get or create UserProfile (in case user doesn't have one)
                     user_profile, _ = UserProfile.objects.get_or_create(user=user)
                     rating_score = rating / 5.0  # 1-5 → 0-1
                     
+                    # Tạo log để collaborative filtering có data học tập
                     rec_log, rec_created = RecommendationLog.objects.get_or_create(
                         user_profile=user_profile,
                         recommended_product=product,
