@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ProductCategory, Product, ProductReview, UserProfile, RecommendationLog
+from .models import ProductCategory, Product, ProductReview, UserProfile, EventLog
 
 
 class ProductCategorySerializer(serializers.ModelSerializer):

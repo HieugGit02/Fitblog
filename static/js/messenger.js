@@ -742,7 +742,7 @@ class MessengerWidget {
                     this.typeText(data.response, 18, meta);
                 } else {
                     this.addMessage(
-                        `❌ ${data.error || 'Có lỗi xảy ra'}`,
+                        `${data.error || 'Có lỗi xảy ra'}`,
                         'bot'
                     );
                     this.updateStatus('offline');
@@ -751,7 +751,7 @@ class MessengerWidget {
             .catch((err) => {
                 container.removeChild(loadingDiv);
                 this.addMessage(
-                    `❌ Lỗi kết nối: ${err.message}. Hãy thử lại!`,
+                    `Lỗi kết nối: ${err.message}. Hãy thử lại!`,
                     'bot'
                 );
                 this.updateStatus('offline');

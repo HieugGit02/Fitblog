@@ -146,11 +146,11 @@
                                 <div class="recommendations-container">
                                     {% for log in personalized_products %}
                                     <div class="recommendation-card">
-                                        <a href="{{ log.recommended_product.get_absolute_url }}" class="text-decoration-none text-dark">
+                                        <a href="{{ log.product.get_absolute_url }}" class="text-decoration-none text-dark product-click-link" data-product-id="{{ log.product.id }}">
                                             <!-- Product Image -->
                                             <div class="product-image-wrapper">
-                                                {% if log.recommended_product.image %}
-                                                    <img src="{{ log.recommended_product.image.url }}" alt="{{ log.recommended_product.name }}" class="product-image">
+                                                {% if log.product.image %}
+                                                    <img src="{{ log.product.image.url }}" alt="{{ log.product.name }}" class="product-image">
                                                 {% else %}
                                                     <div class="no-image">Không có ảnh</div>
                                                 {% endif %}
@@ -158,26 +158,26 @@
                                             
                                             <!-- Product Info -->
                                             <div class="product-info">
-                                                <h6 class="product-name">{{ log.recommended_product.name|truncatewords:5 }}</h6>
+                                                <h6 class="product-name">{{ log.product.name|truncatewords:5 }}</h6>
                                                 
-                                                {% if log.recommended_product.category %}
+                                                {% if log.product.category %}
                                                 <p class="category-badge">
-                                                    {{ log.recommended_product.category.name }}
+                                                    {{ log.product.category.name }}
                                                 </p>
                                                 {% endif %}
                                                 
                                                 <!-- Price -->
-                                                {% if log.recommended_product.price %}
+                                                {% if log.product.price %}
                                                 <div class="price-section">
-                                                    <p class="price">{{ log.recommended_product.price|format_price }} đ</p>
+                                                    <p class="price">{{ log.product.price|format_price }} đ</p>
                                                     <small class="recommendation-label">
-                                                        {% if log.recommendation_type == "personalized" %}
+                                                        {% if log.metadata.recommendation_type == "personalized" %}
                                                             Phù hợp với mục tiêu
-                                                        {% elif log.recommendation_type == "content-based" %}
+                                                        {% elif log.metadata.recommendation_type == "content-based" %}
                                                             Sản phẩm liên quan
-                                                        {% elif log.recommendation_type == "review-action" %}
+                                                        {% elif log.metadata.recommendation_type == "review-action" %}
                                                             Vừa đánh giá
-                                                        {% elif log.recommendation_type == "goal-based" %}
+                                                        {% elif log.metadata.recommendation_type == "goal-based" %}
                                                             Theo mục tiêu
                                                         {% else %}
                                                             Sản phẩm gợi ý
@@ -192,8 +192,8 @@
                                 </div>
                                 
                                 <!-- Navigation Buttons -->
-                                <button class="slider-btn slider-prev" onclick="scrollRecommendations('left')">‹</button>
-                                <button class="slider-btn slider-next" onclick="scrollRecommendations('right')">›</button>
+                                <button class="slider-btn slider-prev" onclick="scrollRecommendations(event, 'left')">‹</button>
+                                <button class="slider-btn slider-next" onclick="scrollRecommendations(event, 'right')">›</button>
                             </div>
                         {% else %}
                             <div class="alert alert-info mb-0">
@@ -204,7 +204,74 @@
                     </div>
                 </div>
 
-                <!-- Section 2: Lịch Sử Xem -->
+                <!-- Section 2: Người Giống Bạn Cũng Mua (NEW COLLABORATIVE) -->
+                <div class="card border-0 shadow-sm mb-4 card-hover">
+                    <div class="card-body p-3">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                            <h5 class="fw-bold mb-0" style="font-size: 1rem;">Người Giống Bạn Cũng Mua</h5>
+                            {% comment %} <span class="badge bg-success" style="font-size: 0.7rem;">Dựa Trên AI</span>
+                            <span class="badge bg-info" style="font-size: 0.7rem;">Tương Tự User</span> {% endcomment %}
+                        </div>
+                        
+                        {% if collaborative_products %}
+                            <div class="recommendations-slider">
+                                <div class="recommendations-container">
+                                    {% for product in collaborative_products %}
+                                    <div class="recommendation-card">
+                                        <a href="{% url 'products:product_detail' product.product_slug %}" class="text-decoration-none text-dark product-click-link" data-product-id="{{ product.product_id }}">
+                                            <!-- Product Image -->
+                                            <div class="product-image-wrapper">
+                                                {% if product.product_image %}
+                                                    <img src="{{ product.product_image }}" alt="{{ product.product_name }}" class="product-image">
+                                                {% else %}
+                                                    <div class="no-image">Không có ảnh</div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Product Info -->
+                                            <div class="product-info">
+                                                <h6 class="product-name">{{ product.product_name|truncatewords:5 }}</h6>
+                                                
+                                                <!-- Predicted Rating -->
+                                                <div style="margin: 6px 0; font-weight: bold; color: #ff9800; font-size: 0.9rem;">
+                                                    {{ product.predicted_rating|floatformat:2 }} ⭐
+                                                </div>
+                                                
+                                                {% if product.product_category %}
+                                                <p class="category-badge">
+                                                    {{ product.product_category }}
+                                                </p>
+                                                {% endif %}
+                                                
+                                                <!-- Price -->
+                                                {% if product.product_price %}
+                                                <div class="price-section">
+                                                    <p class="price">{{ product.product_price|floatformat:0 }} đ</p>
+                                                    <small class="recommendation-label">
+                                                        Người tương tự bạn đánh giá cao
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Navigation Buttons -->
+                                <button class="slider-btn slider-prev" onclick="scrollRecommendations(event, 'left')">‹</button>
+                                <button class="slider-btn slider-next" onclick="scrollRecommendations(event, 'right')">›</button>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0">
+                                <p class="mb-2 fw-bold">Gợi ý này sẽ xuất hiện sau.</p>
+                                <p class="mb-0 small">Hệ thống sẽ gợi ý sản phẩm từ những người tương tự bạn.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Section 3: Lịch Sử Xem -->
                 <div class="card border-0 shadow-sm card-hover">
                     <div class="card-body p-3">
                         <h5 class="fw-bold mb-3" style="font-size: 1rem;">Lịch Sử Xem</h5>
@@ -224,31 +291,35 @@
                                         {% for log in all_logs.object_list %}
                                         <tr>
                                             <td>
-                                                <a href="{{ log.recommended_product.get_absolute_url }}" class="text-decoration-none text-dark fw-500">
-                                                    {{ log.recommended_product.name|truncatewords:4 }}
+                                                <a href="{{ log.product.get_absolute_url }}" class="text-decoration-none text-dark fw-500 product-click-link" data-product-id="{{ log.product.id }}">
+                                                    {{ log.product.name|truncatewords:4 }}
                                                 </a>
                                             </td>
                                             <td>
-                                                {% if log.recommendation_type == "personalized" %}
-                                                    <span class="badge bg-primary">Phù Hợp</span>
-                                                {% elif log.recommendation_type == "content-based" %}
-                                                    <span class="badge bg-secondary">Liên Quan</span>
-                                                {% elif log.recommendation_type == "review-action" %}
+                                                {% if log.event_type == "review_submit" %}
                                                     <span class="badge bg-warning">Đánh Giá</span>
-                                                {% elif log.recommendation_type == "goal-based" %}
+                                                {% elif log.metadata.recommendation_type == "personalized" %}
+                                                    <span class="badge bg-primary">Phù Hợp</span>
+                                                {% elif log.metadata.recommendation_type == "content-based" %}
+                                                    <span class="badge bg-secondary">Liên Quan</span>
+                                                {% elif log.metadata.recommendation_type == "review-action" %}
+                                                    <span class="badge bg-warning">Đánh Giá</span>
+                                                {% elif log.metadata.recommendation_type == "goal-based" %}
                                                     <span class="badge bg-info">Theo Mục Tiêu</span>
                                                 {% else %}
-                                                    <span class="badge bg-light text-dark">{{ log.recommendation_type }}</span>
+                                                    <span class="badge bg-light text-dark">-</span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <small class="text-muted">{{ log.created_at|date:"d/m H:i" }}</small>
+                                                <small class="text-muted">{{ log.timestamp|date:"d/m H:i" }}</small>
                                             </td>
                                             <td>
-                                                {% if log.purchased %}
+                                                {% if log.event_type == "rec_purchased" %}
                                                     <span class="badge bg-success">Đã Mua</span>
-                                                {% elif log.clicked %}
+                                                {% elif log.event_type == "rec_clicked" %}
                                                     <span class="badge bg-warning text-dark">Đã Xem</span>
+                                                {% elif log.event_type == "product_view" %}
+                                                    <span class="badge bg-info">Xem Chi Tiết</span>
                                                 {% else %}
                                                     <span class="text-muted small">-</span>
                                                 {% endif %}
@@ -791,9 +862,20 @@
 </style>
 
 <script>
-function scrollRecommendations(direction) {
-    const container = document.querySelector('.recommendations-container');
-    const cards = document.querySelectorAll('.recommendation-card');
+function scrollRecommendations(event, direction) {
+    // Ngăn chặn event bubbling
+    event.stopPropagation();
+    event.preventDefault();
+    
+    // Lấy button element
+    const button = event.target;
+    
+    // Tìm .recommendations-slider gần nhất (parent của button)
+    const slider = button.closest('.recommendations-slider');
+    
+    // Từ slider, tìm .recommendations-container
+    const container = slider.querySelector('.recommendations-container');
+    
     const cardWidth = 232; // Card width + gap
     const scrollAmount = cardWidth;
     const tolerance = 5; // Cho phép sai số 5px

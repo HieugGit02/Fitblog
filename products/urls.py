@@ -49,6 +49,9 @@ urlpatterns = auth_patterns + [
     
     # Tracking endpoint
     path('api/track-click/', views.track_product_click, name='track_product_click'),
+    
+    # Unified endpoint: Get personalized + collaborative + history
+    path('api/user-profile-with-collaborative/', views.user_profile_with_collaborative, name='user_profile_with_collaborative'),
 ]
 
 # Example URLs:

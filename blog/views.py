@@ -173,9 +173,9 @@ class SubscribeView(View):
             if created:
                 message = "✅ Đăng ký thành công!"
             else:
-                message = "ℹ️ Email này đã được đăng ký"
+                message = "Email này đã được đăng ký"
         else:
-            message = "❌ Vui lòng nhập email"
+            message = "Vui lòng nhập email"
         
         # Redirect back to previous page
         next_url = request.POST.get('next', '/')

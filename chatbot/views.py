@@ -109,7 +109,7 @@ def chat_api(request):
             })
             
         except requests.exceptions.Timeout:
-            logger.error("❌ LLM Timeout")
+            logger.error("LLM Timeout")
             return JsonResponse({
                 'success': False,
                 'error': '⏱️ Chatbot đang xử lý chậm, vui lòng thử lại sau',
@@ -117,7 +117,7 @@ def chat_api(request):
             }, status=504)
             
         except requests.exceptions.ConnectionError:
-            logger.error("❌ LLM Connection Error")
+            logger.error("LLM Connection Error")
             return JsonResponse({
                 'success': False,
                 'error': '📡 Chatbot tạm thời offline, vui lòng thử lại sau',
@@ -125,7 +125,7 @@ def chat_api(request):
             }, status=503)
             
         except requests.exceptions.HTTPError as e:
-            logger.error(f"❌ LLM HTTP Error: {e}")
+            logger.error(f"LLM HTTP Error: {e}")
             return JsonResponse({
                 'success': False,
                 'error': '🚨 Chatbot gặp lỗi, vui lòng thử lại sau',
