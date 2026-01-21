@@ -1072,44 +1072,39 @@ def product_detail(request, slug):
     if user_profile and user_profile.goal and user_profile.goal != 'general-health':
         # Check if main product matches user's goal
         if user_profile.goal in product.suitable_for_goals:
-            # Log the main product as "personalized" (matches goal)
-            log, created = EventLog.objects.get_or_create(
+            # Log the main product as "shown" (matches goal)
+            EventLog.objects.create(
                 user_profile=user_profile,
                 product=product,
-                recommendation_type='personalized',  # 🔑 Add to lookup
-                defaults={
+                event_type='product_view',
+                metadata={
+                    'recommendation_type': 'personalized',
                     'score': 0.95,
-                    'clicked': True,  # Mark as clicked when user views product detail
+                    'page': 'product_detail'
                 }
             )
-            # If log already existed, mark as clicked
-            if not created and not log.clicked:
-                log.clicked = True
-                log.save()
         else:
             # Log as "content-based" (same category but different goal)
-            log, created = EventLog.objects.get_or_create(
+            EventLog.objects.create(
                 user_profile=user_profile,
                 product=product,
-                recommendation_type='content-based',  # 🔑 Add to lookup
-                defaults={
+                event_type='product_view',
+                metadata={
+                    'recommendation_type': 'content-based',
                     'score': 0.5,
-                    'clicked': True,  # Mark as clicked when user views product detail
+                    'page': 'product_detail'
                 }
             )
-            # If log already existed, mark as clicked
-            if not created and not log.clicked:
-                log.clicked = True
-                log.save()
         
         # Log recommended products (only if match goal)
         for rec_product in recommendations:
             if user_profile.goal in rec_product.suitable_for_goals:
-                log, created = EventLog.objects.get_or_create(
+                EventLog.objects.create(
                     user_profile=user_profile,
                     product=rec_product,
-                    recommendation_type='personalized',  # 🔑 Add to lookup
-                    defaults={
+                    event_type='rec_shown',
+                    metadata={
+                        'recommendation_type': 'personalized',
                         'score': 0.95,
                     }
                 )
@@ -1170,30 +1165,27 @@ def track_product_click(request):
         # Get product
         product = Product.objects.get(id=product_id)
         
-        # Update or create recommendation log
-        log, created = EventLog.objects.get_or_create(
+        # Create event log
+        event_map = {
+            'click': 'rec_clicked',
+            'purchase': 'rec_purchased',
+            'view': 'product_view'
+        }
+        event_type_mapped = event_map.get(event_type, 'product_view')
+        
+        EventLog.objects.create(
             user_profile=user_profile,
             product=product,
-            defaults={
+            event_type=event_type_mapped,
+            metadata={
                 'recommendation_type': 'content-based',
-                'clicked': False,
-                'purchased': False,
+                'action': event_type
             }
         )
-        
-        # Update click/purchase status
-        if event_type == 'click':
-            log.clicked = True
-        elif event_type == 'purchase':
-            log.purchased = True
-            log.clicked = True  # If purchased, also mark as clicked
-        
-        log.save()
         
         return JsonResponse({
             'success': True,
             'message': f'Event tracked: {event_type}',
-            'log_id': log.id
         })
     
     except Product.DoesNotExist:
