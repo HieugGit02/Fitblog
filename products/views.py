@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from .models import Product, ProductCategory, ProductReview, UserProfile, RecommendationLog
+from .models import Product, ProductCategory, ProductReview, UserProfile, EventLog
 from .serializers import (
     ProductSerializer, ProductDetailSerializer, ProductCategorySerializer,
     ProductReviewSerializer
@@ -181,18 +181,22 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         serializer = ProductSerializer(recommendations, many=True)
         
         # ✅ OPTIMIZATION: Use bulk_create instead of loop (50 queries → 1 query)
+        # Log all recommendations as "shown" events
         logs = [
-            RecommendationLog(
+            EventLog(
                 user_profile=user_profile,
-                recommended_product=product,
-                recommendation_type='personalized',
-                score=0.0,
-                reason=f'Personalized for goal: {goal or user_profile.goal}'
+                product=product,
+                event_type='rec_shown',
+                metadata={
+                    'recommendation_type': 'personalized',
+                    'goal': goal or user_profile.goal,
+                    'score': 0.0
+                }
             )
             for product in recommendations
         ]
         if logs:
-            RecommendationLog.objects.bulk_create(logs, ignore_conflicts=True)
+            EventLog.objects.bulk_create(logs)
         
         return Response({
             'count': len(serializer.data),
@@ -524,16 +528,16 @@ def user_profile_view(request):
         messages.warning(request, 'Vui lòng điền thông tin profile')
         return redirect('products:user_profile_setup')
     
-    # Lấy recommendation logs (personalized)
-    personalized_products = RecommendationLog.objects.filter(
+    # Lấy recommendation events (rec_shown, rec_clicked)
+    personalized_products = EventLog.objects.filter(
         user_profile=user_profile,
-        recommendation_type__in=['personalized', 'goal-based']
-    ).order_by('-created_at')[:6]
+        event_type__in=['rec_shown', 'rec_clicked']
+    ).order_by('-timestamp')[:6]
     
-    # Lấy tất cả logs cho "Lịch Sử Xem" với phân trang
-    all_logs_queryset = RecommendationLog.objects.filter(
+    # Lấy tất cả events cho "Lịch Sử Xem" với phân trang
+    all_logs_queryset = EventLog.objects.filter(
         user_profile=user_profile
-    ).order_by('-created_at')
+    ).order_by('-timestamp')
     
     # Phân trang: 5 sản phẩm/trang
     paginator = Paginator(all_logs_queryset, 5)
@@ -586,7 +590,7 @@ def user_profile_delete(request):
     # GET: Show confirmation page with 2 options
     context = {
         'user_profile': user_profile,
-        'recommendation_count': RecommendationLog.objects.filter(user_profile=user_profile).count()
+        'recommendation_count': EventLog.objects.filter(user_profile=user_profile).count()
     }
     
     return render(request, 'products/user_profile_delete.html', context)
@@ -621,7 +625,7 @@ def user_profile_delete_permanent(request):
         # Log deletion
         logger.warning(f"🗑️ Deleting account permanently: {username} (ID: {user_id})")
         
-        # Delete UserProfile (cascade will delete RecommendationLogs)
+        # Delete UserProfile (cascade will delete EventLogs)
         UserProfile.objects.filter(user=user).delete()
         
         # Delete User account
@@ -864,15 +868,15 @@ def product_list(request):
         # Log matching products as "personalized" recommendations
         for product in page_obj.object_list:
             if product.id in recommended_products:
-                # Match user's goal → "personalized" recommendation
-                # Don't mark as clicked yet (user only saw on list, not detail page)
-                RecommendationLog.objects.get_or_create(
+                # Log that personalized product was shown to user on product list
+                EventLog.objects.create(
                     user_profile=user_profile,
-                    recommended_product=product,
-                    defaults={
+                    product=product,
+                    event_type='rec_shown',
+                    metadata={
                         'recommendation_type': 'personalized',
-                        'score': 0.95,  # High score for goal match
-                        'clicked': False,  # Not clicked yet, just shown on list
+                        'page': 'product_list',
+                        'goal': user_profile.goal if user_profile else None
                     }
                 )
     
@@ -996,35 +1000,27 @@ def product_detail(request, slug):
                 logger.info(f"📝 Review by anonymous: {author_name}")
                 message = '✅ Cảm ơn! Đánh giá của bạn đã được gửi. Admin sẽ phê duyệt trong thời gian sớm nhất.'
             
-            # 🆕 RecommendationLog: Chỉ authenticated user mới kích hoạt
-            # Anonymous comments KHÔNG tạo recommendation log
+            # 🆕 EventLog: Chỉ authenticated user mới track
+            # Anonymous comments KHÔNG tạo event log
             if user:
                 try:
                     # Get or create UserProfile (in case user doesn't have one)
                     user_profile, _ = UserProfile.objects.get_or_create(user=user)
-                    rating_score = rating / 5.0  # 1-5 → 0-1
                     
-                    # Tạo log để collaborative filtering có data học tập
-                    rec_log, rec_created = RecommendationLog.objects.get_or_create(
+                    # Create event log for review submission
+                    EventLog.objects.create(
                         user_profile=user_profile,
-                        recommended_product=product,
-                        recommendation_type='review-action',
-                        defaults={
-                            'score': rating_score,
-                            'clicked': True
+                        product=product,
+                        event_type='review_submit',
+                        metadata={
+                            'rating': rating,
+                            'title': title[:100],  # title preview
                         }
                     )
-                    
-                    if not rec_created:
-                        # Update existing log
-                        rec_log.score = rating_score
-                        rec_log.save()
-                        logger.info(f"🔄 RecommendationLog updated for {user.username} rating={rating_score:.2f}")
-                    else:
-                        logger.info(f"📊 RecommendationLog created for {user.username} rating={rating_score:.2f}")
+                    logger.info(f"📊 EventLog created for {user.username} - review rating={rating}")
                         
                 except Exception as e:
-                    logger.error(f"❌ Error with RecommendationLog: {str(e)}")
+                    logger.error(f"❌ Error with EventLog: {str(e)}")
             
             # 🆕 Return JSON response for AJAX requests
             if is_ajax:
@@ -1077,9 +1073,9 @@ def product_detail(request, slug):
         # Check if main product matches user's goal
         if user_profile.goal in product.suitable_for_goals:
             # Log the main product as "personalized" (matches goal)
-            log, created = RecommendationLog.objects.get_or_create(
+            log, created = EventLog.objects.get_or_create(
                 user_profile=user_profile,
-                recommended_product=product,
+                product=product,
                 recommendation_type='personalized',  # 🔑 Add to lookup
                 defaults={
                     'score': 0.95,
@@ -1092,9 +1088,9 @@ def product_detail(request, slug):
                 log.save()
         else:
             # Log as "content-based" (same category but different goal)
-            log, created = RecommendationLog.objects.get_or_create(
+            log, created = EventLog.objects.get_or_create(
                 user_profile=user_profile,
-                recommended_product=product,
+                product=product,
                 recommendation_type='content-based',  # 🔑 Add to lookup
                 defaults={
                     'score': 0.5,
@@ -1109,9 +1105,9 @@ def product_detail(request, slug):
         # Log recommended products (only if match goal)
         for rec_product in recommendations:
             if user_profile.goal in rec_product.suitable_for_goals:
-                log, created = RecommendationLog.objects.get_or_create(
+                log, created = EventLog.objects.get_or_create(
                     user_profile=user_profile,
-                    recommended_product=rec_product,
+                    product=rec_product,
                     recommendation_type='personalized',  # 🔑 Add to lookup
                     defaults={
                         'score': 0.95,
@@ -1175,9 +1171,9 @@ def track_product_click(request):
         product = Product.objects.get(id=product_id)
         
         # Update or create recommendation log
-        log, created = RecommendationLog.objects.get_or_create(
+        log, created = EventLog.objects.get_or_create(
             user_profile=user_profile,
-            recommended_product=product,
+            product=product,
             defaults={
                 'recommendation_type': 'content-based',
                 'clicked': False,

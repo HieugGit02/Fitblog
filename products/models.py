@@ -608,90 +608,118 @@ class UserProfile(models.Model):
 
 
 # ============================================================================
-# RECOMMENDATION LOG MODEL (Tracking & Analytics)
+# ============================================================================
+# EVENT LOG MODEL (User Interaction Tracking - Optimized)
 # ============================================================================
 
-class RecommendationLog(models.Model):
+class EventLog(models.Model):
     """
-    Log tracking recommendations để analyze effectiveness & improve algorithm
+    Track ALL user interactions: views, clicks, reviews, purchases, etc.
     
-    Dùng để:
-    1. Track which recommendations user clicked/purchased
-    2. Measure recommendation quality (accuracy)
-    3. A/B test different recommendation strategies
-    4. Build collaborative filtering data
+    More flexible than RecommendationLog:
+    - Can track ANY event type, not just recommendations
+    - No UNIQUE constraint (allow duplicate events)
+    - Lightweight: only essential fields
     
-    Example:
-        - user_profile: User 123
-        - recommended_product: Whey Gold
-        - recommendation_type: 'llm-based'
-        - score: 0.95
-        - clicked: True (user clicked)
-        - purchased: True (user actually bought)
+    Example events:
+    - user: User 123
+    - product: Whey Gold  
+    - event_type: 'product_view'
+    - metadata: {'page': 'product_list', 'from_recommendation': 'personalized'}
+    - timestamp: 2025-01-21 10:30:45
     """
     
-    RECOMMENDATION_TYPE_CHOICES = [
-        ('personalized', 'Personalized (by user profile)'),
-        ('content-based', 'Content-based (product similarity)'),
-        ('goal-based', 'Goal-based (by user goal)'),
-        ('collaborative', 'Collaborative (similar users)'),
-        ('llm-based', 'LLM-based (AI analysis)'),
-        ('trending', 'Trending (popular)'),
-        ('user-view', 'User view (tracking)'),
+    EVENT_TYPE_CHOICES = [
+        # Product interactions
+        ('product_view', 'Product viewed'),
+        ('product_click', 'Product clicked'),
+        ('review_submit', 'Review submitted'),
+        ('review_helpful', 'Review marked helpful'),
+        
+        # Recommendation interactions
+        ('rec_shown', 'Recommendation shown to user'),
+        ('rec_clicked', 'Recommendation clicked'),
+        ('rec_purchased', 'Recommended product purchased'),
+        
+        # Search & filter
+        ('search', 'Search performed'),
+        ('filter_apply', 'Filter applied'),
+        ('sort_applied', 'Sort applied'),
+        
+        # Auth events
+        ('login', 'User logged in'),
+        ('logout', 'User logged out'),
+        ('register', 'User registered'),
+        ('profile_setup', 'Profile setup completed'),
+        ('profile_update', 'Profile updated'),
+        
+        # Other
+        ('page_load', 'Page loaded'),
+        ('api_call', 'API called'),
     ]
 
+    # ========== CORE FIELDS ==========
     user_profile = models.ForeignKey(
         UserProfile,
         on_delete=models.CASCADE,
-        related_name='recommendation_logs',
+        related_name='events',
         verbose_name="Hồ sơ người dùng",
         null=True,
         blank=True
     )
-
-    recommended_product = models.ForeignKey(
+    
+    product = models.ForeignKey(
         Product,
         on_delete=models.CASCADE,
-        related_name='recommendation_logs',
-        verbose_name="Sản phẩm gợi ý"
+        related_name='events',
+        verbose_name="Sản phẩm",
+        null=True,
+        blank=True
     )
 
-    recommendation_type = models.CharField(
-        max_length=50,
-        choices=RECOMMENDATION_TYPE_CHOICES,
-        verbose_name="Loại recommendation"
+    event_type = models.CharField(
+        max_length=30,
+        choices=EVENT_TYPE_CHOICES,
+        db_index=True,
+        verbose_name="Loại event"
     )
 
-    score = models.FloatField(
-        default=0.0,
-        validators=[MinValueValidator(0), MaxValueValidator(1)],
-        verbose_name="Điểm confidence (0-1)"
-    )
-
-    reason = models.TextField(
+    # ========== OPTIONAL CONTEXT ==========
+    # JSON field to store flexible metadata
+    metadata = models.JSONField(
+        default=dict,
         blank=True,
-        verbose_name="Lý do gợi ý"
+        verbose_name="Metadata (JSON)",
+        help_text="Thông tin thêm: {'page': '...', 'from_rec': '...', 'score': ...}"
     )
 
-    # ========== ENGAGEMENT TRACKING ==========
-    clicked = models.BooleanField(default=False, verbose_name="Clicked?")
-    purchased = models.BooleanField(default=False, verbose_name="Purchased?")
-
-    # ========== TIMESTAMPS ==========
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Ngày gợi ý")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Cập nhật lúc")
+    # ========== TIMESTAMP ==========
+    timestamp = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name="Thời gian"
+    )
 
     class Meta:
-        verbose_name_plural = "Recommendation Logs"
-        ordering = ['-created_at']
+        verbose_name_plural = "Event Logs"
+        ordering = ['-timestamp']
         indexes = [
-            models.Index(fields=['user_profile', '-created_at']),
-            models.Index(fields=['recommendation_type']),
-            models.Index(fields=['purchased']),
+            models.Index(fields=['user_profile', '-timestamp']),
+            models.Index(fields=['event_type', '-timestamp']),
+            models.Index(fields=['product', '-timestamp']),
+            models.Index(fields=['-timestamp']),  # For recent events query
         ]
 
     def __str__(self):
-        return f"[{self.recommendation_type}] {self.recommended_product.name} - Score: {self.score:.2f}"
+        user = self.user_profile.user.username if self.user_profile else "anonymous"
+        product = self.product.name if self.product else "N/A"
+        return f"{user} | {self.event_type} | {product} | {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+    def save(self, *args, **kwargs):
+        """Auto-set timestamp if not provided"""
+        if not self.id and not self.timestamp:
+            self.timestamp = timezone.now()
+        super().save(*args, **kwargs)
 
 
 # ============================================================================

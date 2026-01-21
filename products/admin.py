@@ -11,7 +11,7 @@ from django.contrib.auth.models import User
 from django.db.models import Count, Q
 from datetime import timedelta
 from django.utils import timezone
-from .models import ProductCategory, Product, ProductReview, UserProfile, RecommendationLog, ProductFlavor
+from .models import ProductCategory, Product, ProductReview, UserProfile, EventLog, ProductFlavor
 from .admin_user import UserAdmin, AdminUserFilter
 
 
@@ -620,57 +620,51 @@ class UserProfileAdmin(admin.ModelAdmin):
     delete_old_sessions.short_description = "Xóa sessions cũ hơn 30 ngày"
 
 
-@admin.register(RecommendationLog)
-class RecommendationLogAdmin(admin.ModelAdmin):
-    """Quản lý logs recommendation (Analytics)"""
+@admin.register(EventLog)
+class EventLogAdmin(admin.ModelAdmin):
+    """Quản lý Event Logs - User interaction tracking"""
     list_display = [
-        'recommended_product',
-        'recommendation_type',
-        'score_display',
-        'clicked_status',
-        'purchased_status',
-        'created_at'
+        'event_type_display',
+        'product_name',
+        'user_profile',
+        'timestamp'
     ]
-    list_filter = ['recommendation_type', 'clicked', 'purchased', 'created_at']
-    search_fields = ['recommended_product__name', 'reason']
-    readonly_fields = ['created_at', 'updated_at']
+    list_filter = ['event_type', 'timestamp']
+    search_fields = ['product__name', 'user_profile__user__username']
+    readonly_fields = ['timestamp']
     
     fieldsets = (
-        ('Recommendation', {
-            'fields': ('user_profile', 'recommended_product', 'recommendation_type')
+        ('Event Information', {
+            'fields': ('user_profile', 'product', 'event_type')
         }),
-        ('Thông tin gợi ý', {
-            'fields': ('score', 'reason')
-        }),
-        ('Engagement', {
-            'fields': ('clicked', 'purchased')
+        ('Additional Data', {
+            'fields': ('metadata',)
         }),
         ('Metadata', {
-            'fields': ('created_at', 'updated_at')
+            'fields': ('timestamp',)
         }),
     )
 
-    def score_display(self, obj):
-        color = 'green' if obj.score >= 0.8 else 'orange' if obj.score >= 0.5 else 'red'
-        score_text = '{:.2f}'.format(obj.score)
+    def event_type_display(self, obj):
+        """Display event_type with color coding"""
+        colors = {
+            'product_view': '#3498db',  # blue
+            'rec_clicked': '#2ecc71',   # green
+            'review_submit': '#e74c3c', # red
+            'purchase': '#f39c12',      # orange
+        }
+        color = colors.get(obj.event_type, '#95a5a6')  # gray
         return format_html(
             '<span style="color:{};font-weight:bold;">{}</span>',
             color,
-            score_text
+            obj.get_event_type_display()
         )
-    score_display.short_description = "Score"
+    event_type_display.short_description = "Event Type"
 
-    def clicked_status(self, obj):
-        if obj.clicked:
-            return format_html('<span style="color:green;font-weight:bold;">✅ Clicked</span>')
-        return "—"
-    clicked_status.short_description = "Clicked"
-
-    def purchased_status(self, obj):
-        if obj.purchased:
-            return format_html('<span style="color:green;font-weight:bold;">✅ Purchased</span>')
-        return "—"
-    purchased_status.short_description = "Purchased"
+    def product_name(self, obj):
+        """Display product name if exists"""
+        return obj.product.name if obj.product else "—"
+    product_name.short_description = "Product"
 
 
 # ============================================================================
@@ -742,7 +736,7 @@ fitblog_admin.register(UserProfile, UserProfileAdmin)
 fitblog_admin.register(ProductReview, ProductReviewAdmin)
 
 # Recommendations
-fitblog_admin.register(RecommendationLog, RecommendationLogAdmin)
+fitblog_admin.register(EventLog, EventLogAdmin)
 
 # Password reset tokens
 fitblog_admin.register(PasswordResetToken, PasswordResetTokenAdmin)
