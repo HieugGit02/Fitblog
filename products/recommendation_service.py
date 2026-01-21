@@ -221,7 +221,19 @@ class CollaborativeFilteringEngine:
             min_predicted_rating: Tối thiểu predicted rating (1-5)
         
         Returns:
-            List of (product_id, predicted_rating)
+            List of dict with full product info:
+            [
+                {
+                    'product_id': 1,
+                    'product_name': 'Whey Protein',
+                    'product_slug': 'whey-protein',
+                    'product_price': 500000,
+                    'product_image': '/media/...',
+                    'product_category': 'Protein',
+                    'predicted_rating': 4.5
+                },
+                ...
+            ]
         """
         similar_users = self.find_similar_users(user_id)
         if not similar_users:
@@ -252,7 +264,25 @@ class CollaborativeFilteringEngine:
         # Sort by predicted rating
         predictions.sort(key=lambda x: x[1], reverse=True)
         
-        return predictions[:n_recommendations]
+        # Lấy product info và format return
+        result = []
+        for product_id, predicted_rating in predictions[:n_recommendations]:
+            try:
+                product = Product.objects.select_related('category').get(id=product_id)
+                result.append({
+                    'product_id': product.id,
+                    'product_name': product.name,
+                    'product_slug': product.slug,
+                    'product_price': float(product.price),
+                    'product_image': product.image.url if product.image else '/static/placeholder.jpg',
+                    'product_category': product.category.name if product.category else 'N/A',
+                    'predicted_rating': round(predicted_rating, 2)
+                })
+            except Product.DoesNotExist:
+                logger.error(f"⚠️ Product {product_id} not found")
+                continue
+        
+        return result
 
 
 class HybridRecommendationEngine:
@@ -356,9 +386,9 @@ class HybridRecommendationEngine:
         """
         try:
             # 1) Get candidates
-            collab_items = self.collab_engine.recommend(user_id, n=15) or []
-            content_items = self._get_content_based_recommendations(user_id, n=15) or []
-            personal_items = self._get_personalized_recommendations(user_id, n=15) or []
+            collab_items = self.collab_engine.recommend(user_id, n=10) or []
+            content_items = self._get_content_based_recommendations(user_id, n=10) or []
+            personal_items = self._get_personalized_recommendations(user_id, n=10) or []
 
             # 2) Normalize each source to same scale [0..1]
             collab_products = self._normalize_scores(collab_items)

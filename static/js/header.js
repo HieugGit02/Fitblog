@@ -77,3 +77,63 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+// ============================================================================
+// PRODUCT CLICK TRACKING
+// ============================================================================
+// Track when user clicks on a product link to record "product_click" event
+document.addEventListener('DOMContentLoaded', function() {
+  // Find all product click links (added data-product-id attribute)
+  const productLinks = document.querySelectorAll('a.product-click-link');
+  
+  productLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+      const productId = this.getAttribute('data-product-id');
+      
+      if (productId) {
+        // Use sendBeacon when possible (reliable during navigation), fall back to fetch
+        const payload = { product_id: productId, event_type: 'click' };
+        const url = '/products/api/track-click/';
+
+        try {
+          if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon(url, blob);
+          } else {
+            // Send async tracking request (don't block navigation)
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+              },
+              body: JSON.stringify(payload),
+              keepalive: true
+            }).catch(() => {
+              // Silently fail - don't block user navigation
+            });
+          }
+        } catch (err) {
+          // Ignore tracking errors
+          console.debug('Product click tracking error', err);
+        }
+      }
+    });
+  });
+});
+
+// Helper function to get CSRF token from cookies
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}

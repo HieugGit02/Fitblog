@@ -274,27 +274,19 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
                     'reason': 'No products with sufficient predicted rating'
                 })
             
-            # Fetch product details
-            product_ids = [prod_id for prod_id, score in recommendations]
-            products = Product.objects.filter(id__in=product_ids)
-            product_map = {p.id: p for p in products}
-            
             # Build response with predicted ratings
             result = []
-            for product_id, predicted_rating in recommendations:
-                product = product_map.get(product_id)
-                if product:
-                    result.append({
-                        'id': product.id,
-                        'name': product.name,
-                        'slug': product.slug,
-                        'price': float(product.price),
-                        'image': product.image.url if product.image else None,
-                        'predicted_rating': round(predicted_rating, 2),
-                        'actual_rating': float(product.get_average_rating() or 0),
-                        'category': product.category.name,
-                        'reason': f'Similar users rated this {predicted_rating:.1f}/5'
-                    })
+            for rec in recommendations:
+                result.append({
+                    'id': rec['product_id'],
+                    'name': rec['product_name'],
+                    'slug': rec['product_slug'],
+                    'price': rec['product_price'],
+                    'image': rec['product_image'],
+                    'predicted_rating': rec['predicted_rating'],
+                    'category': rec['product_category'],
+                    'reason': f'Similar users rated this {rec["predicted_rating"]}/5'
+                })
             
             # Log similar users info for debugging
             similar_users_info = [
@@ -319,11 +311,11 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             })
             
         except Exception as e:
-            logger.error(f"❌ Collaborative filtering error: {str(e)}")
+            logger.error(f"Collaborative filtering error: {str(e)}")
             return Response({
                 'error': 'Algorithm error',
                 'message': str(e),
-                'status': '❌ Failed'
+                'status': 'Failed'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -389,6 +381,7 @@ class ProductReviewViewSet(viewsets.ModelViewSet):
 # ===== FRONTEND VIEWS (HTML RENDERING) =====
 
 from django.shortcuts import render, get_object_or_404, redirect
+from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 from django.contrib import messages
 from .forms import UserProfileForm, QuickProfileForm
@@ -528,16 +521,47 @@ def user_profile_view(request):
         messages.warning(request, 'Vui lòng điền thông tin profile')
         return redirect('products:user_profile_setup')
     
-    # Lấy recommendation events (rec_shown, rec_clicked)
-    personalized_products = EventLog.objects.filter(
+    # FIX: Lấy CHỈ EVENT MỚI NHẤT cho mỗi sản phẩm (tránh duplication)
+    from django.db.models import Max, F, Window
+    from django.db.models.functions import RowNumber
+    
+    # Step 1: Lấy recommendation events - chỉ event mới nhất mỗi sản phẩm
+    # Lấy product IDs từ recommendations (rec_shown hoặc rec_clicked)
+    recommendation_product_ids = EventLog.objects.filter(
         user_profile=user_profile,
         event_type__in=['rec_shown', 'rec_clicked']
-    ).order_by('-timestamp')[:6]
+    ).values('product_id').annotate(
+        latest_id=Max('id')
+    ).values('latest_id')[:6]
     
-    # Lấy tất cả events cho "Lịch Sử Xem" với phân trang
-    all_logs_queryset = EventLog.objects.filter(
-        user_profile=user_profile
+    # Lấy các event IDs đó
+    recommendation_ids = [e['latest_id'] for e in recommendation_product_ids]
+    personalized_products = EventLog.objects.filter(
+        id__in=recommendation_ids
     ).order_by('-timestamp')
+    
+    # Step 2: Lấy tất cả sản phẩm đã xem - chỉ EVENT MỚI NHẤT mỗi sản phẩm
+    # Tìm tất cả product_id đã xem (bất kỳ event loại nào)
+    # INCLUDE review_submit (để hiển thị trong lịch sử khi user đánh giá)
+    viewed_product_ids = EventLog.objects.filter(
+        user_profile=user_profile,
+        product__isnull=False
+    ).exclude(
+        event_type__in=['review_helpful', 'page_load', 'api_call', 'login', 'logout', 'search', 'filter_apply', 'sort_applied']
+    ).values('product_id')
+    
+    # Lấy EVENT MỚI NHẤT (id lớn nhất = timestamp mới nhất) cho mỗi product_id
+    latest_event_ids = EventLog.objects.filter(
+        user_profile=user_profile,
+        product_id__in=viewed_product_ids
+    ).values('product_id').annotate(
+        latest_id=Max('id')
+    ).values('latest_id')
+    
+    # Lấy các event đó từ DB (có đủ thông tin: timestamp, metadata, etc)
+    all_logs_queryset = EventLog.objects.filter(
+        id__in=[e['latest_id'] for e in latest_event_ids]
+    ).select_related('product').order_by('-timestamp')
     
     # Phân trang: 5 sản phẩm/trang
     paginator = Paginator(all_logs_queryset, 5)
@@ -550,9 +574,26 @@ def user_profile_view(request):
     except EmptyPage:
         all_logs = paginator.page(paginator.num_pages)
     
+    # ============ BUILD COLLABORATIVE RECOMMENDATIONS ============
+    from .recommendation_service import CollaborativeFilteringEngine
+    
+    collaborative_products = []
+    try:
+        engine = CollaborativeFilteringEngine()
+        # Pass user_id (not UserProfile object)
+        user_id = user_profile.user_id if user_profile.user else None
+        if user_id:
+            recommendations = engine.recommend(user_id, n_recommendations=5)
+            if recommendations:
+                collaborative_products = recommendations
+    except Exception as e:
+        logger.error(f"Collaborative filtering error in user_profile_view: {str(e)}")
+        collaborative_products = []
+    
     context = {
         'user_profile': user_profile,
         'personalized_products': personalized_products,
+        'collaborative_products': collaborative_products,
         'all_logs': all_logs,
         'page_obj': all_logs,
         'paginator': paginator,
@@ -857,7 +898,7 @@ def product_list(request):
         if session_id:
             user_profile = UserProfile.objects.filter(session_id=session_id).first()
     
-    # Log only if user has setup profile with goal
+    # Only log if user has setup profile with goal
     if user_profile and user_profile.goal and user_profile.goal != 'general-health':
         # Filter products that match user's goal (true recommendations)
         recommended_products = set(Product.objects.filter(
@@ -866,17 +907,31 @@ def product_list(request):
         ).values_list('id', flat=True))
         
         # Log matching products as "personalized" recommendations
+        # BUT: Check if already logged in last 24 hours to avoid duplicates
+        from datetime import timedelta
+        from django.utils import timezone
+        
         for product in page_obj.object_list:
             if product.id in recommended_products:
-                # Log that personalized product was shown to user on product list
-                EventLog.objects.create(
+                # Check if already logged recently (within 24 hours)
+                recent_event = EventLog.objects.filter(
                     user_profile=user_profile,
                     product=product,
                     event_type='rec_shown',
-                    metadata={
-                        'recommendation_type': 'personalized',
-                        'page': 'product_list',
-                        'goal': user_profile.goal if user_profile else None
+                    timestamp__gte=timezone.now() - timedelta(hours=24)
+                ).exists()
+                
+                # Only log if no recent event
+                if not recent_event:
+                    # Log that personalized product was shown to user on product list
+                    EventLog.objects.create(
+                        user_profile=user_profile,
+                        product=product,
+                        event_type='rec_shown',
+                        metadata={
+                            'recommendation_type': 'personalized',
+                            'page': 'product_list',
+                            'goal': user_profile.goal if user_profile else None
                     }
                 )
     
@@ -1007,6 +1062,16 @@ def product_detail(request, slug):
                     # Get or create UserProfile (in case user doesn't have one)
                     user_profile, _ = UserProfile.objects.get_or_create(user=user)
                     
+                    # Determine recommendation type based on product goal match
+                    recommendation_type = 'unknown'
+                    if user_profile.goal and product.suitable_for_goals:
+                        if user_profile.goal in product.suitable_for_goals:
+                            recommendation_type = 'personalized'
+                        else:
+                            recommendation_type = 'content-based'
+                    else:
+                        recommendation_type = 'unknown'
+                    
                     # Create event log for review submission
                     EventLog.objects.create(
                         user_profile=user_profile,
@@ -1015,9 +1080,10 @@ def product_detail(request, slug):
                         metadata={
                             'rating': rating,
                             'title': title[:100],  # title preview
+                            'recommendation_type': recommendation_type,
                         }
                     )
-                    logger.info(f"📊 EventLog created for {user.username} - review rating={rating}")
+                    logger.info(f"📊 EventLog created for {user.username} - review rating={rating} - type={recommendation_type}")
                         
                 except Exception as e:
                     logger.error(f"❌ Error with EventLog: {str(e)}")
@@ -1027,8 +1093,8 @@ def product_detail(request, slug):
                 return JsonResponse({'success': True, 'message': message})
             # Message was already set in the if/else blocks above
         except Exception as e:
-            logger.error(f"❌ Error creating review: {str(e)}")
-            message = f'❌ Lỗi: {str(e)}'
+            logger.error(f" Error creating review: {str(e)}")
+            message = f' Lỗi: {str(e)}'
             
             # Return JSON error for AJAX requests
             if is_ajax:
@@ -1070,45 +1136,68 @@ def product_detail(request, slug):
     
     # Only log if user has setup profile with goal
     if user_profile and user_profile.goal and user_profile.goal != 'general-health':
-        # Check if main product matches user's goal
-        if user_profile.goal in product.suitable_for_goals:
-            # Log the main product as "shown" (matches goal)
-            EventLog.objects.create(
-                user_profile=user_profile,
-                product=product,
-                event_type='product_view',
-                metadata={
-                    'recommendation_type': 'personalized',
-                    'score': 0.95,
-                    'page': 'product_detail'
-                }
-            )
-        else:
-            # Log as "content-based" (same category but different goal)
-            EventLog.objects.create(
-                user_profile=user_profile,
-                product=product,
-                event_type='product_view',
-                metadata={
-                    'recommendation_type': 'content-based',
-                    'score': 0.5,
-                    'page': 'product_detail'
-                }
-            )
+        # Check if already logged recently (within 1 hour) to avoid duplicates
+        from datetime import timedelta
+        from django.utils import timezone
         
-        # Log recommended products (only if match goal)
-        for rec_product in recommendations:
-            if user_profile.goal in rec_product.suitable_for_goals:
+        # Check if main product was already logged
+        recent_event = EventLog.objects.filter(
+            user_profile=user_profile,
+            product=product,
+            event_type='product_view',
+            timestamp__gte=timezone.now() - timedelta(hours=1)
+        ).exists()
+        
+        # Only log if no recent event
+        if not recent_event:
+            # Check if main product matches user's goal
+            if user_profile.goal in product.suitable_for_goals:
+                # Log the main product as "shown" (matches goal)
                 EventLog.objects.create(
                     user_profile=user_profile,
-                    product=rec_product,
-                    event_type='rec_shown',
+                    product=product,
+                    event_type='product_view',
                     metadata={
                         'recommendation_type': 'personalized',
                         'score': 0.95,
+                        'page': 'product_detail'
                     }
                 )
-                # Don't mark rec_product as clicked (user hasn't viewed them yet)
+            else:
+                # Log as "content-based" (same category but different goal)
+                EventLog.objects.create(
+                    user_profile=user_profile,
+                    product=product,
+                    event_type='product_view',
+                    metadata={
+                        'recommendation_type': 'content-based',
+                        'score': 0.5,
+                        'page': 'product_detail'
+                    }
+                )
+        
+        # Log recommended products (only if match goal)
+        for rec_product in recommendations:
+            # Check if already logged recently
+            recent_rec_event = EventLog.objects.filter(
+                user_profile=user_profile,
+                product=rec_product,
+                event_type='rec_shown',
+                timestamp__gte=timezone.now() - timedelta(hours=24)
+            ).exists()
+            
+            # Only log if no recent event
+            if not recent_rec_event:
+                if user_profile.goal in rec_product.suitable_for_goals:
+                    EventLog.objects.create(
+                        user_profile=user_profile,
+                        product=rec_product,
+                        event_type='rec_shown',
+                        metadata={
+                            'recommendation_type': 'personalized',
+                            'score': 0.95,
+                        }
+                    )
     
     context = {
         'product': product,
@@ -1127,6 +1216,7 @@ def product_detail(request, slug):
 # TRACKING & ANALYTICS VIEWS
 # ============================================================================
 
+@csrf_exempt
 def track_product_click(request):
     """
     Track product click/view event from frontend JavaScript
@@ -1138,12 +1228,20 @@ def track_product_click(request):
     }
     
     Response: {'success': True, 'message': 'Event tracked'}
+    
+    🔄 LOGIC:
+    - Nếu event mới lần đầu → CREATE
+    - Nếu event đã tồn tại (trong 5 phút gần nhất) → UPDATE timestamp + metadata
+    - Lý do: Tránh bị đè khi user xem sản phẩm vừa đánh giá
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
         import json
+        from datetime import timedelta
+        from django.utils import timezone
+        
         data = json.loads(request.body)
         product_id = data.get('product_id')
         event_type = data.get('event_type', 'click')  # 'click' or 'purchase'
@@ -1151,21 +1249,20 @@ def track_product_click(request):
         if not product_id:
             return JsonResponse({'error': 'product_id is required'}, status=400)
         
-        # Get session and user profile
-        session_id = request.session.session_key
-        if not session_id:
-            request.session.create()
+        # Determine user_profile: prefer authenticated user, else session-based
+        if request.user.is_authenticated:
+            user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        else:
             session_id = request.session.session_key
-        
-        # Get user profile (only update if exists)
-        user_profile = UserProfile.objects.filter(session_id=session_id).first()
-        if not user_profile:
-            return JsonResponse({'error': 'User profile not found'}, status=404)
+            if not session_id:
+                request.session.create()
+                session_id = request.session.session_key
+            user_profile, _ = UserProfile.objects.get_or_create(session_id=session_id)
         
         # Get product
         product = Product.objects.get(id=product_id)
         
-        # Create event log
+        # Map event type
         event_map = {
             'click': 'rec_clicked',
             'purchase': 'rec_purchased',
@@ -1173,15 +1270,50 @@ def track_product_click(request):
         }
         event_type_mapped = event_map.get(event_type, 'product_view')
         
-        EventLog.objects.create(
+        # Determine recommendation_type: check if product matches user's goal
+        recommendation_type = 'content-based'  # Default
+        
+        # If user has a goal, check if product is personalized
+        if user_profile.goal and user_profile.goal != 'general-health':
+            if user_profile.goal in product.suitable_for_goals:
+                recommendation_type = 'personalized'
+        
+        # 🆕 FIX: Check if event recently exists (within 5 minutes)
+        # If so, UPDATE it instead of CREATE new
+        five_minutes_ago = timezone.now() - timedelta(minutes=5)
+        
+        recent_event = EventLog.objects.filter(
             user_profile=user_profile,
             product=product,
-            event_type=event_type_mapped,
-            metadata={
-                'recommendation_type': 'content-based',
-                'action': event_type
+            timestamp__gte=five_minutes_ago
+        ).order_by('-timestamp').first()
+        
+        if recent_event and recent_event.event_type != 'review_submit':
+            # UPDATE existing event (only if not review_submit - reviews should stay)
+            # 🆕 FIX: Giữ nguyên recommendation_type từ event cũ (không override)
+            old_metadata = recent_event.metadata or {}
+            old_rec_type = old_metadata.get('recommendation_type', recommendation_type)
+            
+            recent_event.event_type = event_type_mapped
+            recent_event.metadata = {
+                'recommendation_type': old_rec_type,  # ← KEEP OLD TYPE
+                'action': event_type,
+                'updated': True
             }
-        )
+            recent_event.save()
+            logger.info(f"Event UPDATED: user_profile={user_profile.id} product={product.id} event={event_type_mapped} rec_type={old_rec_type}")
+        else:
+            # CREATE new event
+            EventLog.objects.create(
+                user_profile=user_profile,
+                product=product,
+                event_type=event_type_mapped,
+                metadata={
+                    'recommendation_type': recommendation_type,
+                    'action': event_type
+                }
+            )
+            logger.info(f"Event CREATED: user_profile={user_profile.id} product={product.id} event={event_type_mapped}")
         
         return JsonResponse({
             'success': True,
@@ -1192,5 +1324,138 @@ def track_product_click(request):
         return JsonResponse({'error': 'Product not found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@csrf_exempt
+def user_profile_with_collaborative(request):
+    """
+    Get user profile with ALL recommendations:
+    - Personalized (Phù Hợp)
+    - Collaborative (Người Giống Bạn Cũng Mua)
+    - History (Lịch Sử Xem)
+    
+    Endpoint: GET /products/api/user-profile-with-collaborative/
+    Auth: Required (token in headers)
+    """
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            'personalized': [],
+            'collaborative': [],
+            'history': [],
+            'authenticated': False
+        })
+    
+    try:
+        user_profile = UserProfile.objects.get(user=request.user)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({
+            'error': 'User profile not found',
+            'message': 'Please complete your profile setup',
+            'personalized': [],
+            'collaborative': [],
+            'history': []
+        }, status=404)
+    
+    # ============ 1. PERSONALIZED RECOMMENDATIONS ============
+    try:
+        # Get user's goal
+        user_goal = user_profile.goal if user_profile.goal else None
+        
+        # Find products matching user's goal + trending
+        if user_goal:
+            personalized_products = Product.objects.filter(
+                status='active',
+                suitable_for_goals__contains=user_goal
+            ).annotate(
+                avg_rating=Avg('reviews__rating'),
+                review_count=Count('reviews')
+            ).order_by('-avg_rating')[:5]
+            
+            personalized_data = [
+                {
+                    'id': p.id,
+                    'name': p.name,
+                    'slug': p.slug,
+                    'price': float(p.price),
+                    'image': p.image.url if p.image else None,
+                    'category': p.category.name if p.category else None
+                }
+                for p in personalized_products
+            ]
+        else:
+            personalized_data = []
+    except Exception as e:
+        logger.error(f"Personalized recommendations error: {str(e)}")
+        personalized_data = []
+    
+    # ============ 2. COLLABORATIVE FILTERING RECOMMENDATIONS ============
+    try:
+        from .recommendation_service import get_collaborative_engine
+        
+        engine = get_collaborative_engine()
+        similar_users = engine.find_similar_users(user_profile.id)
+        
+        if similar_users:
+            recommendations = engine.recommend(
+                user_profile.id,
+                n_recommendations=5,
+                min_predicted_rating=3.5
+            )
+            
+            collaborative_data = [
+                {
+                    'id': rec['product_id'],
+                    'name': rec['product_name'],
+                    'slug': rec['product_slug'],
+                    'price': float(rec['product_price']),
+                    'image': rec['product_image'],
+                    'predicted_rating': round(rec['predicted_rating'], 2),
+                    'category': rec['product_category']
+                }
+                for rec in recommendations
+            ]
+        else:
+            collaborative_data = []
+    except Exception as e:
+        logger.error(f"Collaborative filtering error: {str(e)}")
+        collaborative_data = []
+    
+    # ============ 3. HISTORY (Latest EventLog per product) ============
+    try:
+        from django.db.models import Max, Subquery
+        
+        # Get latest event per product for this user
+        latest_events = EventLog.objects.filter(
+            user_profile=user_profile
+        ).values('product_id').annotate(
+            latest_id=Max('id')
+        ).values('latest_id')
+        
+        history_logs = EventLog.objects.filter(
+            id__in=Subquery(latest_events.values('latest_id'))
+        ).select_related('product').order_by('-timestamp')[:10]
+        
+        history_data = [
+            {
+                'product_id': log.product.id,
+                'product_name': log.product.name,
+                'product_slug': log.product.slug,
+                'recommendation_type': log.metadata.get('recommendation_type', 'unknown') if log.metadata else 'unknown',
+                'event_type': log.event_type,
+                'timestamp': log.timestamp.isoformat()
+            }
+            for log in history_logs
+        ]
+    except Exception as e:
+        logger.error(f"History error: {str(e)}")
+        history_data = []
+    
+    return JsonResponse({
+        'personalized': personalized_data,
+        'collaborative': collaborative_data,
+        'history': history_data,
+        'authenticated': True,
+        'status': 'success'
+    })
 
 
