@@ -232,7 +232,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         Status: ✅ Ready for testing
         Data requirement: Need at least 10 reviews from different users
         """
-        from .recommendation_service import get_collaborative_engine
+        from .recommendation_service import CollaborativeFilteringEngine
         
         # Only for authenticated users
         if not request.user.is_authenticated:
@@ -245,8 +245,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         min_rating = float(request.query_params.get('min_rating', 3.5))
         
         try:
-            # Get collaborative filtering engine
-            engine = get_collaborative_engine()
+            # Get collaborative filtering engine (fresh instance, not cached)
+            # Force rebuild matrix mỗi lần để ensure data is up-to-date
+            engine = CollaborativeFilteringEngine()
             
             # Find similar users
             similar_users = engine.find_similar_users(request.user.id)

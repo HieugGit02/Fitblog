@@ -246,7 +246,7 @@
                                                 <!-- Price -->
                                                 {% if product.product_price %}
                                                 <div class="price-section">
-                                                    <p class="price">{{ product.product_price|floatformat:0 }} đ</p>
+                                                    <p class="price">{{ product.product_price|format_price }} đ</p>
                                                     <small class="recommendation-label">
                                                         Người tương tự bạn đánh giá cao
                                                     </small>
