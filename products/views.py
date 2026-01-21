@@ -135,6 +135,8 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         
         IMPORTANT: This endpoint ONLY works for authenticated users!
         Anonymous users should use /api/products/ endpoint instead.
+        
+        ✅ FIX 2: Session-based deduplication - log only once per session
         """
         # Get user profile from authenticated user
         if not request.user.is_authenticated:
@@ -180,23 +182,39 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         
         serializer = ProductSerializer(recommendations, many=True)
         
-        # ✅ OPTIMIZATION: Use bulk_create instead of loop (50 queries → 1 query)
-        # Log all recommendations as "shown" events
-        logs = [
-            EventLog(
+        # ✅ FIX 2: Session-based deduplication
+        # Only log if NOT already logged in this session for this product
+        session_key = request.session.session_key or 'anonymous'
+        
+        logs_to_create = []
+        for product in recommendations:
+            # Check if already logged in THIS SESSION
+            already_logged = EventLog.objects.filter(
                 user_profile=user_profile,
                 product=product,
                 event_type='rec_shown',
-                metadata={
-                    'recommendation_type': 'personalized',
-                    'goal': goal or user_profile.goal,
-                    'score': 0.0
-                }
-            )
-            for product in recommendations
-        ]
-        if logs:
-            EventLog.objects.bulk_create(logs)
+                metadata__session_id=session_key
+            ).exists()
+            
+            if not already_logged:
+                logs_to_create.append(
+                    EventLog(
+                        user_profile=user_profile,
+                        product=product,
+                        event_type='rec_shown',
+                        metadata={
+                            'recommendation_type': 'personalized',
+                            'goal': goal or user_profile.goal,
+                            'session_id': session_key,  # ✅ Track session to prevent duplicates
+                            'score': 0.95
+                        }
+                    )
+                )
+        
+        # ✅ OPTIMIZATION: Use bulk_create instead of loop (50 queries → 1 query)
+        if logs_to_create:
+            EventLog.objects.bulk_create(logs_to_create)
+            logger.info(f"📊 Logged {len(logs_to_create)} rec_shown events for {user_profile.user.username} (session: {session_key})")
         
         return Response({
             'count': len(serializer.data),
@@ -1137,20 +1155,20 @@ def product_detail(request, slug):
     
     # Only log if user has setup profile with goal
     if user_profile and user_profile.goal and user_profile.goal != 'general-health':
-        # Check if already logged recently (within 1 hour) to avoid duplicates
-        from datetime import timedelta
-        from django.utils import timezone
+        # ✅ FIX 2: Session-based deduplication (not time-based)
+        # Only log if NOT already logged in THIS SESSION
+        session_key = request.session.session_key or 'anonymous'
         
-        # Check if main product was already logged
-        recent_event = EventLog.objects.filter(
+        # Check if main product was already logged in this session
+        already_logged_main = EventLog.objects.filter(
             user_profile=user_profile,
             product=product,
             event_type='product_view',
-            timestamp__gte=timezone.now() - timedelta(hours=1)
+            metadata__session_id=session_key
         ).exists()
         
-        # Only log if no recent event
-        if not recent_event:
+        # Only log if no event in this session
+        if not already_logged_main:
             # Check if main product matches user's goal
             if user_profile.goal in product.suitable_for_goals:
                 # Log the main product as "shown" (matches goal)
@@ -1160,6 +1178,7 @@ def product_detail(request, slug):
                     event_type='product_view',
                     metadata={
                         'recommendation_type': 'personalized',
+                        'session_id': session_key,  # ✅ Track session
                         'score': 0.95,
                         'page': 'product_detail'
                     }
@@ -1172,6 +1191,7 @@ def product_detail(request, slug):
                     event_type='product_view',
                     metadata={
                         'recommendation_type': 'content-based',
+                        'session_id': session_key,  # ✅ Track session
                         'score': 0.5,
                         'page': 'product_detail'
                     }
@@ -1179,16 +1199,16 @@ def product_detail(request, slug):
         
         # Log recommended products (only if match goal)
         for rec_product in recommendations:
-            # Check if already logged recently
-            recent_rec_event = EventLog.objects.filter(
+            # ✅ FIX 2: Check if already logged in this session
+            already_logged_rec = EventLog.objects.filter(
                 user_profile=user_profile,
                 product=rec_product,
                 event_type='rec_shown',
-                timestamp__gte=timezone.now() - timedelta(hours=24)
+                metadata__session_id=session_key
             ).exists()
             
-            # Only log if no recent event
-            if not recent_rec_event:
+            # Only log if no event in this session
+            if not already_logged_rec:
                 if user_profile.goal in rec_product.suitable_for_goals:
                     EventLog.objects.create(
                         user_profile=user_profile,
@@ -1196,6 +1216,7 @@ def product_detail(request, slug):
                         event_type='rec_shown',
                         metadata={
                             'recommendation_type': 'personalized',
+                            'session_id': session_key,  # ✅ Track session
                             'score': 0.95,
                         }
                     )
