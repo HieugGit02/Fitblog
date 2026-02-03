@@ -24,10 +24,14 @@ class UserItemMatrix:
     """
     Tạo & quản lý user-item matrix từ reviews
     
-    Dạng:
+    Optimization:
+    - Use hash maps (dicts) instead of list.index() for O(1) lookup
+    - Cache user_index_map and product_index_map
+    
+    Structure:
         rows: user_ids
         cols: product_ids
-        values: ratings (1-5) hoặc 0 (chưa review)
+        values: ratings (1-5) or 0 (not reviewed)
     """
     
     def __init__(self):
@@ -35,12 +39,14 @@ class UserItemMatrix:
         self.matrix = None
         self.user_ids = None
         self.product_ids = None
+        self.user_index_map = {}  # {user_id: index} for O(1) lookup
+        self.product_index_map = {}  # {product_id: index} for O(1) lookup
         self.build()
     
     def build(self):
-        """Xây dựng matrix từ database"""
+        """Build matrix from database"""
         try:
-            # Lấy tất cả approved reviews từ authenticated users
+            # Get all approved reviews from authenticated users
             reviews = ProductReview.objects.filter(
                 is_approved=True,
                 user__isnull=False
@@ -49,20 +55,24 @@ class UserItemMatrix:
             )
             
             if not reviews.exists():
-                logger.warning("⚠️ Không có reviews nào từ authenticated users")
+                logger.warning("⚠️ No reviews from authenticated users")
                 return
             
-            # Lấy unique user_ids & product_ids
+            # Get unique user_ids and product_ids
             self.user_ids = sorted(set(r['user_id'] for r in reviews))
             self.product_ids = sorted(set(r['product_id'] for r in reviews))
             
-            # Khởi tạo matrix với 0s
+            # Build hash maps for O(1) lookup instead of list.index()
+            self.user_index_map = {user_id: idx for idx, user_id in enumerate(self.user_ids)}
+            self.product_index_map = {product_id: idx for idx, product_id in enumerate(self.product_ids)}
+            
+            # Initialize matrix with zeros
             self.matrix = np.zeros((len(self.user_ids), len(self.product_ids)))
             
-            # Fill trong ratings
+            # Fill ratings
             for review in reviews:
-                user_idx = self.user_ids.index(review['user_id'])
-                product_idx = self.product_ids.index(review['product_id'])
+                user_idx = self.user_index_map[review['user_id']]
+                product_idx = self.product_index_map[review['product_id']]
                 self.matrix[user_idx][product_idx] = review['rating']
             
             logger.info(
@@ -74,26 +84,22 @@ class UserItemMatrix:
             logger.error(f"❌ Error building matrix: {str(e)}")
     
     def get_user_index(self, user_id):
-        """Lấy index của user trong matrix"""
-        if user_id in self.user_ids:
-            return self.user_ids.index(user_id)
-        return None
+        """Get user index in matrix - O(1) lookup using hash map"""
+        return self.user_index_map.get(user_id)
     
     def get_product_index(self, product_id):
-        """Lấy index của product trong matrix"""
-        if product_id in self.product_ids:
-            return self.product_ids.index(product_id)
-        return None
+        """Get product index in matrix - O(1) lookup using hash map"""
+        return self.product_index_map.get(product_id)
     
     def get_user_vector(self, user_id):
-        """Lấy rating vector của user"""
+        """Get rating vector of user"""
         idx = self.get_user_index(user_id)
         if idx is not None:
             return self.matrix[idx]
         return None
     
     def get_product_vector(self, product_id):
-        """Lấy rating vector của product"""
+        """Get rating vector of product"""
         idx = self.get_product_index(product_id)
         if idx is not None:
             return self.matrix[:, idx]
@@ -124,26 +130,37 @@ class CollaborativeFilteringEngine:
     
     def cosine_similarity(self, vec1, vec2):
         """
-        Tính cosine similarity giữa 2 vectors
+        Calculate cosine similarity between 2 vectors with min_common_ratings constraint.
         
-        Score từ -1 (đối lập) tới 1 (giống hệt)
-        - 1.0: hoàn toàn giống nhau
-        - 0.9: rất giống
-        - 0.5: có chút liên hệ
-        - 0.0: không liên hệ
+        Returns similarity score from -1 (opposite) to 1 (identical):
+        - 1.0: identical
+        - 0.9: very similar
+        - 0.5: somewhat related
+        - 0.0: no relationship
+        
+        Optimization:
+        - Apply min_common_ratings constraint: if common rated products < threshold, return 0.0
+        - Only keep similarity > 0.0
         """
-        # Remove zero ratings (chưa rate)
+        # Get indices where both users rated (non-zero values)
         mask = (vec1 != 0) & (vec2 != 0)
+        common_count = np.sum(mask)
+        
+        # Apply min_common_ratings threshold
+        if common_count < self.min_common_ratings:
+            return 0.0
+        
         if not np.any(mask):
             return 0.0
         
         v1 = vec1[mask]
         v2 = vec2[mask]
         
-        # Normalize vào [0,1] range
-        v1_norm = (v1 - 1) / 4  # Ratings 1-5 → 0-1
-        v2_norm = (v2 - 1) / 4
+        # Normalize ratings from [1-5] to [0-1]
+        v1_norm = (v1 - 1) / 4.0
+        v2_norm = (v2 - 1) / 4.0
         
+        # Calculate cosine similarity
         dot_product = np.dot(v1_norm, v2_norm)
         norm1 = np.linalg.norm(v1_norm)
         norm2 = np.linalg.norm(v2_norm)
@@ -151,17 +168,26 @@ class CollaborativeFilteringEngine:
         if norm1 == 0 or norm2 == 0:
             return 0.0
         
-        return dot_product / (norm1 * norm2 + 1e-9)
+        similarity = dot_product / (norm1 * norm2 + 1e-9)
+        
+        # Only return similarity > 0
+        return max(0.0, similarity)
     
     def find_similar_users(self, user_id):
         """
-        Tìm K users tương tự nhất với target user
+        Find K most similar users to target user.
         
         Returns:
-            List of (similar_user_id, similarity_score)
+            List of (similar_user_id, similarity_score) with similarity > 0,
+            sorted by similarity descending, max k_neighbors items.
+            
+        Optimization:
+        - Filter out similarity <= 0 to avoid wasting computation
+        - Only return top k_neighbors with positive similarity
         """
         user_idx = self.matrix.get_user_index(user_id)
         if user_idx is None:
+            logger.debug(f"User {user_id} not in matrix")
             return []
         
         user_vector = self.matrix.get_user_vector(user_id)
@@ -173,55 +199,116 @@ class CollaborativeFilteringEngine:
             
             other_vector = self.matrix.matrix[other_idx]
             similarity = self.cosine_similarity(user_vector, other_vector)
-            similarities.append((other_user_id, similarity))
+            
+            # Only keep positive similarities
+            if similarity > 0.0:
+                similarities.append((other_user_id, similarity))
         
-        # Sort và lấy top K
+        # Sort by similarity descending and return top k_neighbors
         similarities.sort(key=lambda x: x[1], reverse=True)
         return similarities[:self.k_neighbors]
     
-    def predict_rating(self, user_id, product_id):
+    def predict_rating(self, user_id, product_id, similar_users_with_scores):
         """
-        Predict rating của user cho product
+        Predict rating for user on product using weighted average from similar users.
         
-        Dùng weighted average của ratings từ similar users
+        Args:
+            user_id: Target user ID
+            product_id: Target product ID
+            similar_users_with_scores: Pre-fetched list of (user_id, similarity_score)
+        
+        Returns:
+            Predicted rating (1.0-5.0) or None if no similar users rated this product
+            
+        Optimization:
+        - Accept pre-fetched similar_users to avoid redundant similarity calculations
+        - Use pre-fetched ratings dict to avoid N+1 queries
         """
-        similar_users = self.find_similar_users(user_id)
-        if not similar_users:
+        if not similar_users_with_scores:
             return None
         
-        # Lấy ratings của similar users cho product này
-        weighted_sum = 0
-        similarity_sum = 0
+        weighted_sum = 0.0
+        similarity_sum = 0.0
         
-        for similar_user_id, similarity_score in similar_users:
-            # Lấy rating của similar user cho product
-            rating = ProductReview.objects.filter(
-                user_id=similar_user_id,
-                product_id=product_id,
-                is_approved=True
-            ).values_list('rating', flat=True).first()
+        for similar_user_id, similarity_score in similar_users_with_scores:
+            # Look up in pre-fetched data (will be populated by recommend())
+            rating = self._get_cached_rating(similar_user_id, product_id)
             
             if rating:
                 weighted_sum += rating * similarity_score
                 similarity_sum += similarity_score
         
-        if similarity_sum == 0:
+        if similarity_sum == 0.0:
             return None
         
         predicted_rating = weighted_sum / similarity_sum
-        return min(5.0, max(1.0, predicted_rating))  # Clamp 1-5
+        return min(5.0, max(1.0, predicted_rating))  # Clamp to [1-5]
     
-    def recommend(self, user_id, n_recommendations=5, min_predicted_rating=3.5):
+    def _get_cached_rating(self, user_id, product_id):
         """
-        Gợi ý N sản phẩm cho user
+        Get rating from cached data.
+        This will be populated by recommend() before calling predict_rating.
+        """
+        if not hasattr(self, '_rating_cache'):
+            self._rating_cache = {}
         
-        Args:
-            user_id: ID của target user
-            n_recommendations: Số sản phẩm cần gợi ý
-            min_predicted_rating: Tối thiểu predicted rating (1-5)
+        key = (user_id, product_id)
+        return self._rating_cache.get(key)
+    
+    def _get_cold_start_recommendations(self, n_recommendations=5):
+        """
+        Fallback recommendations for cold-start users (no similar users found).
+        
+        Strategy:
+        1. Top-rated products (by average rating)
+        2. Best sellers (by review count)
         
         Returns:
-            List of dict with full product info:
+            List of dicts with product info
+        """
+        logger.info("❄️ Applying cold-start fallback: top-rated products")
+        
+        try:
+            # Get top-rated products with sufficient reviews
+            top_products = Product.objects.filter(
+                status='active'
+            ).annotate(
+                avg_rating=Avg('reviews__rating'),
+                review_count=Count('reviews')
+            ).filter(
+                review_count__gte=2  # At least 2 reviews to be reliable
+            ).select_related('category').order_by(
+                '-avg_rating', '-review_count'
+            )[:n_recommendations]
+            
+            result = []
+            for product in top_products:
+                result.append({
+                    'product_id': product.id,
+                    'product_name': product.name,
+                    'product_slug': product.slug,
+                    'product_price': float(product.price),
+                    'product_image': product.image.url if product.image else '/static/placeholder.jpg',
+                    'product_category': product.category.name if product.category else 'N/A',
+                    'predicted_rating': round(product.avg_rating or 3.0, 2)
+                })
+            
+            return result
+        except Exception as e:
+            logger.error(f"❌ Cold-start fallback error: {str(e)}")
+            return []
+
+    def recommend(self, user_id, n_recommendations=5, min_predicted_rating=3.5):
+        """
+        Recommend N products for user using collaborative filtering.
+        
+        Args:
+            user_id: Target user ID
+            n_recommendations: Number of products to recommend
+            min_predicted_rating: Minimum predicted rating threshold (1-5)
+        
+        Returns:
+            List of dicts with product info:
             [
                 {
                     'product_id': 1,
@@ -234,41 +321,96 @@ class CollaborativeFilteringEngine:
                 },
                 ...
             ]
+        
+        Optimizations:
+        1. Find similar users once
+        2. Fetch all similar users' ratings in bulk (avoid N+1 query)
+        3. Only predict for products rated by at least one similar user
+        4. Cold-start fallback if no similar users found
         """
-        similar_users = self.find_similar_users(user_id)
-        if not similar_users:
-            logger.warning(f"⚠️ Không tìm thấy similar users cho user {user_id}")
-            return []
-        
-        # Lấy products mà target user chưa review
-        reviewed_products = set(
-            ProductReview.objects.filter(
-                user_id=user_id
-            ).values_list('product_id', flat=True)
-        )
-        
-        unevaluated_products = set(
-            Product.objects.filter(
-                status='active'
-            ).values_list('id', flat=True)
-        ) - reviewed_products
-        
-        # Predict ratings & recommend
-        predictions = []
-        for product_id in unevaluated_products:
-            predicted_rating = self.predict_rating(user_id, product_id)
+        try:
+            # Step 1: Find similar users
+            similar_users = self.find_similar_users(user_id)
             
-            if predicted_rating and predicted_rating >= min_predicted_rating:
-                predictions.append((product_id, predicted_rating))
-        
-        # Sort by predicted rating
-        predictions.sort(key=lambda x: x[1], reverse=True)
-        
-        # Lấy product info và format return
-        result = []
-        for product_id, predicted_rating in predictions[:n_recommendations]:
-            try:
-                product = Product.objects.select_related('category').get(id=product_id)
+            # Cold-start handling: no similar users found
+            if not similar_users:
+                logger.warning(f"⚠️ No similar users found for user {user_id}, using cold-start fallback")
+                return self._get_cold_start_recommendations(n_recommendations)
+            
+            # Step 2: Get products already reviewed by target user
+            reviewed_products = set(
+                ProductReview.objects.filter(
+                    user_id=user_id
+                ).values_list('product_id', flat=True)
+            )
+            
+            # Step 3: Bulk fetch all ratings from similar users
+            # This avoids N+1 query problem in predict_rating()
+            similar_user_ids = [uid for uid, _ in similar_users]
+            
+            similar_reviews = ProductReview.objects.filter(
+                user_id__in=similar_user_ids,
+                is_approved=True
+            ).select_related('product').values(
+                'user_id', 'product_id', 'rating'
+            )
+            
+            # Build rating cache: {(user_id, product_id): rating}
+            self._rating_cache = {
+                (r['user_id'], r['product_id']): r['rating']
+                for r in similar_reviews
+            }
+            
+            # Get products rated by similar users (candidates for recommendation)
+            products_rated_by_similar = set(
+                r['product_id'] for r in similar_reviews
+            )
+            
+            # Step 4: Get unevaluated products
+            # Only consider products rated by similar users (avoid unnecessary predictions)
+            unevaluated_products = products_rated_by_similar - reviewed_products
+            
+            if not unevaluated_products:
+                logger.warning(f"⚠️ No unevaluated products for user {user_id}")
+                return []
+            
+            # Step 5: Predict ratings and collect predictions
+            predictions = []
+            for product_id in unevaluated_products:
+                predicted_rating = self.predict_rating(
+                    user_id, 
+                    product_id, 
+                    similar_users
+                )
+                
+                if predicted_rating and predicted_rating >= min_predicted_rating:
+                    predictions.append((product_id, predicted_rating))
+            
+            if not predictions:
+                logger.warning(f"⚠️ No predictions above threshold for user {user_id}")
+                return self._get_cold_start_recommendations(n_recommendations)
+            
+            # Step 6: Sort by predicted rating
+            predictions.sort(key=lambda x: x[1], reverse=True)
+            
+            # Step 7: Fetch product details and format response
+            result = []
+            product_ids = [pid for pid, _ in predictions[:n_recommendations]]
+            
+            # Bulk fetch products
+            products_map = {
+                p.id: p
+                for p in Product.objects.filter(
+                    id__in=product_ids
+                ).select_related('category')
+            }
+            
+            for product_id, predicted_rating in predictions[:n_recommendations]:
+                if product_id not in products_map:
+                    logger.warning(f"⚠️ Product {product_id} not found (may have been deleted)")
+                    continue
+                
+                product = products_map[product_id]
                 result.append({
                     'product_id': product.id,
                     'product_name': product.name,
@@ -278,11 +420,12 @@ class CollaborativeFilteringEngine:
                     'product_category': product.category.name if product.category else 'N/A',
                     'predicted_rating': round(predicted_rating, 2)
                 })
-            except Product.DoesNotExist:
-                logger.error(f"⚠️ Product {product_id} not found")
-                continue
+            
+            return result
         
-        return result
+        except Exception as e:
+            logger.error(f"❌ Recommendation error for user {user_id}: {str(e)}")
+            return []
 
 
 class HybridRecommendationEngine:
